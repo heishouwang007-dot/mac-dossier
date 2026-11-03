@@ -800,6 +800,20 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     }
 }
 
+// MARK: -NSApplicationDelegate(单窗口工具的收尾语义)
+
+extension InventoryWindow: NSApplicationDelegate {
+    // 点 X 关掉唯一窗口 = 整个应用退出。
+    // 默认行为是「进程活着、Dock 留一个点不动的僵尸图」——对单窗口工具毫无意义。
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    // 防御：万一处于「无窗但活着」的状态，点 Dock 图标要能叫回窗口，而不是没反应
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag, let w = window { w.makeKeyAndOrderFront(nil) }
+        return true
+    }
+}
+
 // MARK: -NSTabView delegate
 
 extension InventoryWindow: NSTabViewDelegate {
@@ -831,6 +845,7 @@ enum Launch {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let holder = InventoryWindow(model: model, viewPath: viewPath)
+        app.delegate = holder
         holder.window.center()
         holder.window.makeKeyAndOrderFront(nil)
         app.activate(ignoringOtherApps: true)
