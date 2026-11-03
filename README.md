@@ -15,11 +15,27 @@ bin/mac-inventory        ← 入口（~/.local/bin 有符号链接）
 ## 用法
 
 ```bash
-mac-inventory              # 采集(约30s) → 渲染 → 打开窗口
+mac-inventory              # 采集(约40s) → 渲染 → 打开窗口
 mac-inventory --render-only # 改完 notes 重渲染（几秒）
 mac-inventory --md          # 终端看 Markdown 版
 mac-inventory --app-only    # 不采集直接开窗口
 ```
+
+## 窗口：看板 / 明细 两个模式
+
+- **看板**（默认）：一行数字卡（brew 自装 / cask / 应用 / 自启 / 端口 / 磁盘），
+  左边「服务与通道」卡（绿点 + 一句话，来自 notes），右边「系统能力 · 要注意」
+  （能力 ✓/✗ + 橙色警告，比如 Time Machine 没配备份）。
+- **明细**：原来的 12 标签页全量表格，看板的下钻层。
+
+## 吸收自社区的做法
+
+- **Brewfile 导出**（Homebrew `bundle dump`，参考无数 dotfiles 仓库）：
+  每次采集把整机清单快照到 `~/.cache/mac-inventory/Brewfile`，与上次 diff——
+  这份文件本身可以 `brew bundle` 一键复装整机；diff 输出「新装了什么」。
+- **HTTP 探活**（Homepage/Dashy 面板的做法）：端口在听 ≠ 服务可用，
+  采集时对 8802/8810 打真实 `/health`，对 7897 做 TCP 握手，结果进徽章和看板警告。
+  Windows 那份 `vdi-inventory` 同步吸收（远端本机探 `8802 /health`）。
 
 ## 窗口里有什么
 

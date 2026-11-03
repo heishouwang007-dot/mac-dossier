@@ -19,7 +19,15 @@ import AppKit
 struct ViewColumn: Codable { var h: String; var w: Int? }
 struct ViewRow: Codable { var cells: [String]; var tag: String?; var copy: String?; var detail: String? }
 struct ViewTab: Codable { var name: String; var hint: String?; var columns: [ViewColumn]; var rows: [ViewRow] }
-struct ViewModel: Codable { var title: String; var subtitle: String; var footer: String; var tabs: [ViewTab] }
+struct DashNum: Codable { var n: String; var label: String }
+struct DashService: Codable { var title: String; var state: String; var line: String; var where_: String?
+
+    enum CodingKeys: String, CodingKey { case title, state, line, where_ = "where" }
+    var wherePath: String { where_ ?? "" }
+}
+struct DashCap: Codable { var name: String; var ok: Bool }
+struct DashboardC: Codable { var numbers: [DashNum]; var services: [DashService]; var caps: [DashCap]; var warns: [String] }
+struct ViewModel: Codable { var title: String; var subtitle: String; var footer: String; var tabs: [ViewTab]; var dashboard: DashboardC? }
 
 func tagColor(_ tag: String?) -> NSColor {
     switch tag {
@@ -180,6 +188,14 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     var btnReload: NSButton!
     var detailBox: NSBox!
     var footerLabel: NSTextField!
+    var segCtrl: NSSegmentedControl!
+    var dashView: NSView!
+    var inDashboard = true   // 默认看板；「明细」才出现表格
+
+    var dashNumBoxes: [NSBox] = []
+    var dashServiceRows: NSView! = NSView()
+    var dashCapView: NSView! = NSView()
+    var dashWarnBox: NSBox! = NSBox()
 
     init(model: ViewModel, viewPath: String) {
         self.model = model
@@ -193,8 +209,11 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
             contentRect: NSRect(x: 0, y: 0, width: 1320, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
-        w.title = model.title
+        // 大标题在窗口内容区里画了，titlebar 只留红绿灯，免得双标题
+        w.title = ""
+        w.titleVisibility = .hidden
         w.titlebarAppearsTransparent = true
+        w.standardWindowButton(.documentIconButton)?.isHidden = true
         w.isMovableByWindowBackground = false
         w.backgroundColor = .windowBackgroundColor
         w.delegate = self
@@ -216,6 +235,11 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         sub.textColor = .secondaryLabelColor
         content.addSubview(sub)
         subLabel = sub
+
+        segCtrl = NSSegmentedControl(labels: ["看板", "明细"], trackingMode: .selectOne,
+                                      target: self, action: #selector(modeChanged(_:)))
+        segCtrl.selectedSegment = 0
+        content.addSubview(segCtrl)
 
         searchField = NSSearchField()
         searchField.placeholderString = "搜索：名称 / 路径 / 端口 / 命令"
@@ -298,6 +322,8 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         footerLabel = footer
 
         // ── 手动布局（定高顶栏 + 弹性中区 + 定高详情/状态，frame 一遍算清）──
+        buildDashboardView(in: content)
+
         layoutSubviews(of: content)
 
         w.delegate = self
@@ -312,28 +338,198 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         }
     }
 
+
+    // MARK: 看板视图
+
+    private func buildDashboardView(in content: NSView) {
+        dashView = NSView()
+        content.addSubview(dashView)
+
+        // 数字 chips（数量不定，frame 在 layoutDashboard 里排）
+        dashNumBoxes.removeAll()
+        for num in model.dashboard?.numbers ?? [] {
+            let box = NSBox()
+            box.boxType = .custom
+            box.borderType = .lineBorder
+            box.cornerRadius = 8
+            box.borderWidth = 1
+            box.borderColor = .separatorColor
+            let big = NSTextField(labelWithString: num.n)
+            big.font = .monospacedDigitSystemFont(ofSize: 22, weight: .semibold)
+            let small = NSTextField(labelWithString: num.label)
+            small.font = .systemFont(ofSize: 10)
+            small.textColor = .secondaryLabelColor
+            box.addSubview(big)
+            box.addSubview(small)
+            big.frame = NSRect(x: 10, y: 24, width: 140, height: 26)
+            small.frame = NSRect(x: 12, y: 8, width: 150, height: 12)
+            dashView.addSubview(box)
+            dashNumBoxes.append(box)
+        }
+
+        // 服务卡
+        let svcBox = NSBox()
+        svcBox.title = "  服务与通道"
+        svcBox.titleFont = .boldSystemFont(ofSize: 10)
+        svcBox.boxType = .custom
+        svcBox.borderType = .lineBorder
+        svcBox.cornerRadius = 8
+        svcBox.borderWidth = 1
+        svcBox.borderColor = .separatorColor
+        let svc = model.dashboard?.services ?? []
+        for (i, sv) in svc.enumerated() {
+            let dot = NSButton(title: "●", target: nil, action: nil)
+            dot.isBordered = false
+            dot.font = .systemFont(ofSize: 13)
+            dot.contentTintColor = sv.state == "ok" ? .systemGreen : (sv.state == "bad" ? .systemRed : .secondaryLabelColor)
+            let title = NSTextField(labelWithString: sv.title)
+            title.font = .systemFont(ofSize: 12, weight: .medium)
+            let line = NSTextField(labelWithString: sv.line)
+            line.font = .systemFont(ofSize: 10)
+            line.textColor = .secondaryLabelColor
+            line.lineBreakMode = .byTruncatingMiddle
+            line.cell?.truncatesLastVisibleLine = true
+            line.cell?.wraps = false
+            dashServiceRows.addSubview(dot)
+            dashServiceRows.addSubview(title)
+            dashServiceRows.addSubview(line)
+        }
+        svcBox.addSubview(dashServiceRows)
+        dashView.addSubview(svcBox)
+
+        // 系统能力
+        let capBox = NSBox()
+        capBox.title = "  系统能力 · 要注意"
+        capBox.titleFont = .boldSystemFont(ofSize: 10)
+        capBox.boxType = .custom
+        capBox.borderType = .lineBorder
+        capBox.cornerRadius = 8
+        capBox.borderWidth = 1
+        capBox.borderColor = .separatorColor
+        let caps = model.dashboard?.caps ?? []
+        for c in caps {
+            let mark = c.ok ? "✓ " : "✗ "
+            let l = NSTextField(labelWithString: mark + c.name)
+            l.font = .systemFont(ofSize: 10.5)
+            if !c.ok { l.textColor = .systemRed }
+            dashCapView.addSubview(l)
+        }
+        capBox.addSubview(dashCapView)
+        dashView.addSubview(capBox)
+
+        // 警告
+        dashWarnBox = NSBox()
+        dashWarnBox.title = "  要注意"
+        dashWarnBox.titleFont = .boldSystemFont(ofSize: 10)
+        dashWarnBox.boxType = .custom
+        dashWarnBox.borderType = .lineBorder
+        dashWarnBox.cornerRadius = 8
+        dashWarnBox.borderWidth = 1
+        dashWarnBox.borderColor = .separatorColor
+        for (i, wn) in (model.dashboard?.warns ?? []).enumerated() {
+            let l = NSTextField(labelWithString: "⚠ " + wn)
+            l.font = .systemFont(ofSize: 11)
+            l.textColor = .systemOrange
+            l.lineBreakMode = .byTruncatingMiddle
+            dashWarnBox.addSubview(l)
+        }
+        dashView.addSubview(dashWarnBox)
+        if (model.dashboard?.warns ?? []).isEmpty { dashWarnBox.isHidden = true }
+    }
+
+    private func layoutDashboard(W: CGFloat, H: CGFloat) {
+        dashView.frame = NSRect(x: 0, y: 0, width: W, height: H - 100)
+        let nums = dashNumBoxes.count
+        let cw: CGFloat = 176, ch: CGFloat = 58, gap: CGFloat = 14
+        let totalW = CGFloat(nums) * cw + CGFloat(nums - 1) * gap
+        let startX = max(16, (W - totalW) / 2)
+        for (i, b) in dashNumBoxes.enumerated() {
+            b.frame = NSRect(x: startX + CGFloat(i) * (cw + gap), y: dashView.bounds.height - ch - 8,
+                             width: cw, height: ch)
+        }
+
+
+
+        // 服务卡（左 62%）+ 能力卡（右 38%），同高填满；服务行距 = 高度/行数
+        let svcCount = max(1, model.dashboard?.services.count ?? 1)
+        let boxesBottom: CGFloat = 12
+        let boxesH = dashView.bounds.height - ch - 20 - boxesBottom
+        let svcBox = dashView.subviews.first { $0 != dashServiceRows && ($0 is NSBox) && ($0 as? NSBox)?.title.contains("服务") == true }
+        let capBox = dashView.subviews.first { ($0 is NSBox) && ($0 as? NSBox)?.title.contains("能力") == true }
+        let svcW = (W - 32 - 12) * 0.62
+        let capW = (W - 32 - 12) * 0.38 - 12
+        svcBox?.frame = NSRect(x: 16, y: boxesBottom, width: svcW, height: boxesH)
+        capBox?.frame = NSRect(x: 16 + svcW + 12, y: boxesBottom, width: capW, height: boxesH)
+
+        // 服务行：行距吃满卡片高度，说明列窄一点防越界
+        let nSv = max(1, CGFloat(model.dashboard?.services.count ?? 1))
+        let rowGap = min(34, max(20, (boxesH - 46) / nSv))
+        for (i, v) in dashServiceRows.subviews.enumerated() {
+            let row = i / 3
+            let kind = i % 3
+            let y = boxesH - 34 - CGFloat(row) * rowGap
+            let w0 = svcW - 24
+            switch kind {
+            case 0: v.frame = NSRect(x: 10, y: y, width: 18, height: 16)
+            case 1: v.frame = NSRect(x: 28, y: y, width: w0 * 0.38, height: 16)
+            default: v.frame = NSRect(x: 28 + w0 * 0.38 + 6, y: y, width: w0 * 0.44, height: 16)
+            }
+        }
+        dashServiceRows.frame = NSRect(x: 0, y: 0, width: svcW - 8, height: boxesH)
+
+        // 能力+警告：单列，自上而下
+        let capN = CGFloat((model.dashboard?.caps ?? []).count + (model.dashboard?.warns ?? []).count)
+        let capGap = min(32, max(18, (boxesH - 40) / max(capN, 1)))
+        for (i, v) in dashCapView.subviews.enumerated() {
+            v.frame = NSRect(x: 10, y: boxesH - 32 - CGFloat(i) * capGap,
+                             width: capW - 26, height: 16)
+        }
+        dashCapView.frame = NSRect(x: 0, y: 0, width: capW - 8, height: boxesH)
+    }
+
+    @objc func modeChanged(_ sender: NSSegmentedControl) {
+        inDashboard = sender.selectedSegment == 0
+        layoutSubviews(of: window.contentView!)
+        if !inDashboard { selectionChanged() }
+    }
+
+    // MARK: 布局（frame 手排，Auto Layout 和 NSTabView 打架）
+
     private func layoutSubviews(of content: NSView) {
         let W = content.bounds.width, H = content.bounds.height
-        let top: CGFloat = 56
+        let top: CGFloat = 100
         let detailH: CGFloat = 132
         let statusH: CGFloat = 24
         let margin: CGFloat = 12
 
-        titleLabel.frame = NSRect(x: margin + 4, y: H - 30, width: 520, height: 20)
-        subLabel.frame = NSRect(x: margin + 5, y: H - 46, width: 700, height: 14)
+        // fullSizeContentView：顶部 ~28pt 被红绿灯/titlebar 占据，内容从 H-64 起
+        titleLabel.frame = NSRect(x: margin + 4, y: H - 66, width: 520, height: 22)
+        subLabel.frame = NSRect(x: margin + 5, y: H - 86, width: 700, height: 14)
 
-        btnReload.frame = NSRect(x: W - 84, y: H - 38, width: 70, height: 24)
-        btnCopy.frame = NSRect(x: W - 160, y: H - 38, width: 70, height: 24)
-        searchField.frame = NSRect(x: W - 436, y: H - 38, width: 268, height: 22)
+        btnReload.frame = NSRect(x: W - 84, y: H - 66, width: 70, height: 24)
+        btnCopy.frame = NSRect(x: W - 160, y: H - 66, width: 70, height: 24)
+        searchField.frame = NSRect(x: W - 436, y: H - 66, width: 268, height: 22)
+        segCtrl.frame = NSRect(x: W - 560, y: H - 64, width: 108, height: 22)
 
-        let tabsH = H - top - detailH - statusH - 44
-        tabView.frame = NSRect(x: margin, y: statusH + detailH + 34,
-                               width: W - 2 * margin, height: tabsH)
-        let cr = tabView.contentRect
-        for item in tabView.tabViewItems {
-            item.view?.frame = cr
+        // 模式切换：看板占满 / 明细表 + 详情
+        dashView.isHidden = !inDashboard
+        searchField.isHidden = inDashboard
+        tabView.isHidden = inDashboard
+        hintLabel.isHidden = inDashboard
+        detailBox.isHidden = inDashboard
+        if inDashboard {
+            layoutDashboard(W: W, H: H)
+            statusLabel.stringValue = "看板 · 切到「明细」看全部数据 · ⌘R 刷新"
+            statusLabel.textColor = .secondaryLabelColor
+        } else {
+            let tabsH = H - top - detailH - statusH - 44
+            tabView.frame = NSRect(x: margin, y: statusH + detailH + 34,
+                                   width: W - 2 * margin, height: tabsH)
+            let cr = tabView.contentRect
+            for item in tabView.tabViewItems { item.view?.frame = cr }
+            panes.forEach { $0.resize(cr.width) }
         }
-        panes.forEach { $0.resize(cr.width) }
+
 
         hintLabel.frame = NSRect(x: margin + 8, y: statusH + detailH + 12,
                                  width: W - 2 * margin - 16, height: 14)

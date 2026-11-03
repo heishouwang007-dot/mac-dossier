@@ -24,7 +24,8 @@
       ],
       "status": [
         "port:8802",
-        "dir:/Users/heishouwang/tongji-llm-api"
+        "dir:/Users/heishouwang/tongji-llm-api",
+        "probe:8802"
       ],
       "commands": [
         "python3"
@@ -57,7 +58,8 @@
         "~/tongji-llm-api/8810/keys_quota.json"
       ],
       "status": [
-        "port:8810"
+        "port:8810",
+        "probe:8810"
       ],
       "docs": [
         "tongji-llm-api/8810/README.md"
@@ -83,7 +85,8 @@
       "status": [
         "port:7897",
         "app:Clash Verge",
-        "dir:/opt/homebrew/Caskroom"
+        "dir:/opt/homebrew/Caskroom",
+        "probe:7897"
       ],
       "brew": [
         "clash-verge"

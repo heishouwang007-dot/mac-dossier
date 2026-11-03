@@ -20,7 +20,7 @@ LIST_FIELDS = {
     "caps", "apps", "launchd", "listeners", "path_entries", "commands", "dirs",
     "formulae", "casks", "taps", "keys", "hosts", "env", "items", "children",
     "bins", "run", "stop", "config", "docs", "status", "programs", "commands_note",
-    "tasks", "covers", "pipx", "npm", "uv_python", "mise",
+    "tasks", "covers", "pipx", "npm", "uv_python", "mise", "http", "lines", "keys",
 }
 
 
@@ -74,6 +74,7 @@ class Facts:
         self.casks = {c["name"].lower(): c for c in (d.get("brew") or {}).get("casks") or []}
         self.formulae = {f["name"].lower(): f for f in (d.get("brew") or {}).get("formulae") or []}
         self.apps = d.get("apps") or []
+        self.http = {int(x["port"]): x for x in (d.get("http") or [])}
 
     def dir_lookup(self, path):
         hit = self.dirs.get(norm(path))
@@ -132,6 +133,16 @@ def resolve_status(item, facts):
             hit = next((a for a in facts.apps if a["bundle"].lower() == arg.lower()), None)
             badges.append({"ok": bool(hit), "label": "App %s" % arg,
                            "detail": hit["path"] if hit else "不在 /Applications"})
+        elif kind == "probe":
+            h = facts.http.get(int(arg))
+            if h is None:
+                badges.append({"ok": None, "label": "探活", "detail": "未采集"})
+            else:
+                badges.append({
+                    "ok": h["ok"],
+                    "label": "%s 探活" % arg,
+                    "detail": ("HTTP /health OK" if h["ok"] else "失败") + " · " + (h.get("detail") or "")[:60],
+                })
         else:
             badges.append({"ok": None, "label": probe, "detail": ""})
     return badges
@@ -224,6 +235,62 @@ def item_detail(it, facts):
     if it.get("confirmed") is False:
         L.append("（这条是按痕迹推断的，待确认）")
     return "\n".join(L)
+
+
+def build_dashboard(data, notes, facts, missing, drift):
+    """看板层：不做新采集，只把已有事实折叠成一屏能看懂的形状。
+
+    rules：
+      numbers  头部数字 chips
+      services 说明层里带 port/probe 探针的条目 → 卡片（状态点 + 一句话）
+      caps     系统能力点名
+      warns    要注意的事：未登记、能力缺失、探活失败
+    """
+    d = data
+    loaded = [x for x in d.get("launchd") or [] if x["loaded"] and not x["backup"]]
+    m = d["meta"]
+
+    numbers = [
+        {"n": "%d" % len([f for f in d["brew"]["formulae"] if f.get("leaf")]),
+         "label": "brew 自装"},
+        {"n": "%d" % len(d["brew"]["casks"]), "label": "brew cask"},
+        {"n": "%d" % len(d["apps"]), "label": "应用"},
+        {"n": "%d" % len(loaded), "label": "自启已加载"},
+        {"n": "%d" % len(d["listeners"]), "label": "监听端口"},
+        {"n": "%s GB" % m["disk_free_gb"], "label": "磁盘空闲"},
+    ]
+
+    services = []
+    for it in notes["items"]:
+        probes = [p for p in (it.get("status") or []) if p.startswith(("port:", "probe:", "launchd:", "app:"))]
+        if not probes:
+            continue
+        badges = resolve_status(it, facts)
+        all_ok = bool(badges) and all(b["ok"] for b in badges if b["ok"] is not None)
+        any_bad = any(b["ok"] is False for b in badges)
+        services.append({
+            "title": it.get("title", ""),
+            "state": "bad" if any_bad else ("ok" if all_ok else "dim"),
+            "line": (it.get("what") or it.get("why") or "")[:64],
+            "where": it.get("where") or "",
+        })
+
+    caps = [{"name": c["name"], "ok": c["ok"]} for c in d.get("caps") or []]
+
+    warns = []
+    if drift or missing:
+        warns.append("未登记 %d 条（明细里看，改 notes/inventory-notes.json）" % (len(drift) + len(missing)))
+    for c in d.get("caps") or []:
+        if not c["ok"]:
+            warns.append("%s：%s" % (c["name"], c.get("detail") or "未开启"))
+    for h in d.get("http") or []:
+        if not h["ok"]:
+            warns.append("通道 %d 探活失败：%s" % (h["port"], (h.get("detail") or "")[:60]))
+    for x in d.get("launchd") or []:
+        if x["backup"] and x["loaded"]:
+            warns.append("备份文件 %s 处于加载态" % x["label"])
+
+    return {"numbers": numbers, "services": services, "caps": caps, "warns": warns}
 
 
 def build_view(data, notes):
@@ -415,6 +482,7 @@ def build_view(data, notes):
             meta["user"], meta["os"], meta["os_build"], meta["cpu"], meta["cores"],
             meta["ram_gb"], meta["disk_free_gb"], meta["collected_at"]),
         "footer": "%d 条说明 · 未登记 %d 条 · 采集只读" % (len(items), len(drift) + len(missing)),
+        "dashboard": build_dashboard(data, notes, facts, missing, drift),
         "tabs": tabs,
     }
 

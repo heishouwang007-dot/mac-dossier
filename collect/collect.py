@@ -306,6 +306,50 @@ def commands():
     return uniq
 
 
+def brewfile():
+    """brew bundle dump --file=- ：整机的声明式清单（cask + tap + mas + whalebrew）。
+
+    两个用途：这份文本本身就能 `brew bundle` 一键复装；diff 两次快照能看出
+    「上次登记之后新装/卸了什么」——比 brew leaves 的瞬时状态多一个时间轴。
+    """
+    rc, out = run([BREW + "/bin/brew", "bundle", "dump", "--file=-"],
+                  timeout=30)
+    lines = [l for l in out.splitlines() if l.strip()] if rc == 0 else []
+    return {"ok": rc == 0, "lines": lines}
+
+
+def http_checks():
+    """本地通道的真实探活（Homepage 面板的做法）：端口在听 ≠ 服务可用。
+
+    8802/8810 走 /health 的 JSON；7897 是 SOCKS/HTTP 混合口，用 TCP 握手判活。
+    """
+    import socket
+    import urllib.request
+    out = []
+    for port, path in ((8802, "/health"), (8810, "/health")):
+        r = {"port": port, "kind": "http", "ok": False, "detail": ""}
+        try:
+            req = urllib.request.Request("http://127.0.0.1:%d%s" % (port, path))
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                body = resp.read(512).decode("utf-8", "replace")
+            r["ok"] = True
+            r["detail"] = '"%s"...' % body[:80]
+        except Exception as e:
+            r["detail"] = repr(e)[:90]
+        out.append(r)
+    # 9097 是远程桌面 mihomo 的控制口，本机 Clash Verge 不用它
+    for port in (7897,):
+        r = {"port": port, "kind": "tcp", "ok": False, "detail": ""}
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=2):
+                r["ok"] = True
+                r["detail"] = "TCP 握手成功"
+        except Exception as e:
+            r["detail"] = repr(e)[:90]
+        out.append(r)
+    return out
+
+
 def package_managers():
     res = {}
     rc, out = run(["pipx", "list", "--short"], timeout=20)
@@ -419,6 +463,8 @@ def main(argv=None):
         "path_entries": path_entries(),
         "commands": commands(),
         "packages": package_managers(),
+        "brewfile": brewfile(),
+        "http": http_checks(),
         "dirs": dirs(),
         "ssh": ssh_surface(),
         "env": shell_env(),
@@ -428,8 +474,34 @@ def main(argv=None):
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
 
+    # Brewfile 快照：跟上次比对，给入口脚本打印「新装了什么」
+    snap_dir = os.path.dirname(args.out)
+    bf = os.path.join(snap_dir, "Brewfile")
+    cur = set((data.get("brewfile") or {}).get("lines") or [])
+    if cur:
+        prev = set()
+        if os.path.exists(bf):
+            with open(bf, encoding="utf-8") as f:
+                prev = {l.strip() for l in f if l.strip()}
+        added = sorted(cur - prev)
+        removed = sorted(prev - cur)
+        if added or removed or not os.path.exists(bf):
+            with open(bf, "w", encoding="utf-8") as f:
+                f.write("\n".join(sorted(cur)) + "\n")
+            if added:
+                print("Brewfile 新增 %d 条:" % len(added))
+                for a in added[:8]:
+                    print("  + " + a)
+            if removed:
+                print("Brewfile 减少 %d 条:" % len(removed))
+                for r in removed[:8]:
+                    print("  - " + r)
+        else:
+            print("Brewfile 无变化（%d 条）" % len(cur))
+
     m = data["meta"]
-    print("OK %s (%d bytes) · %s · brew %d formula / %d cask · %d app · %d launchd · %d 端口 · %d 命令" % (
+    print("OK %s (%d bytes) · %s · brew %d formula / %d cask · %d app · %d launchd · %d 端口 · %d 命令"
+           % (
         args.out, os.path.getsize(args.out), m["hostname"],
         len(data["brew"]["formulae"]), len(data["brew"]["casks"]),
         len(data["apps"]), len(data["launchd"]), len(data["listeners"]),
