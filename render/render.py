@@ -373,7 +373,8 @@ def build_view(data, notes):
             "detail": "%s\n%s\n%s" % (c["name"], c.get("version") or "", c["path"]),
         })
     tabs.append({"name": "命令行 (%d)" % len(cmd_rows),
-                 "hint": "从 PATH 里解析出来的，版本是现跑的（每条都有超时，卡住不影响采集）",
+                 "hint": "敲一个命令名，实际执行的是哪个文件（版本实时试跑出来的）· "
+                         "橙色 = 探测异常 · 交互式工具不参与版本探测",
                  "columns": [{"h": "命令", "w": 140}, {"h": "版本", "w": 380}, {"h": "路径", "w": 500}],
                  "rows": cmd_rows})
 

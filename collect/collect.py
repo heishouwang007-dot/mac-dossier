@@ -269,6 +269,9 @@ def path_entries():
     return dirs
 
 
+# 交互式/TUI 工具：不存在 --version 这个概念，实跑探测只会误报黄色
+NO_VERSION = {"hermes", "anysearch"}
+
 PROBE = [
     ("brew", ["--version"]), ("git", ["--version"]), ("gh", ["--version"]),
     ("python3", ["-V"]), ("node", ["-v"]), ("npm", ["-v"]), ("pnpm", ["-v"]),
@@ -292,6 +295,11 @@ def commands():
     for name, args in PROBE:
         path = shutil.which(name)
         if not path:
+            continue
+        if name in NO_VERSION:
+            # 能解析到、可执行，就说明它是好的；版本列写人话，不跑探测
+            out.append({"name": name, "path": path,
+                        "version": "交互式工具（不响应 --version）", "ok": True})
             continue
         rc, ver = run([path] + args, timeout=6)
         first = ver.splitlines()[0].strip() if ver else ""
