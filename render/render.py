@@ -476,13 +476,14 @@ def build_view(data, notes):
             "copy": a["path"],
             "detail": "%s\n%s\n%s" % (a["name"], a.get("bundle_id") or "", a["path"]),
         })
+    dep_rows = []
     for f in (data.get("brew") or {}).get("formulae") or []:
         if f.get("leaf"):
             continue
-        soft_rows.append({"cells": ["brew 依赖", f["name"], f.get("version") or "", ""],
-                          "tag": "dim", "copy": f["name"],
-                          "detail": "%s 是上面某个包的依赖，不是单独装的\n卸载：brew uninstall %s"
-                                    % (f["name"], f["name"])})
+        dep_rows.append({"cells": ["brew 依赖", f["name"], f.get("version") or "", ""],
+                         "tag": "dim", "copy": f["name"],
+                         "detail": "%s 是上面某个包的依赖，不是单独装的\n卸载：brew uninstall %s"
+                                   % (f["name"], f["name"])})
 
     # 其他包管理器（与 brew 平行的真·安装来源，brew list / /Applications 都看不见它们）
     pkgs = data.get("packages") or {}
@@ -520,6 +521,7 @@ def build_view(data, notes):
                           "tag": "", "copy": parts[0],
                           "detail": "uv 自己装的 Python 运行时（brew/系统的那份不算）\n"
                                   "卸载：uv python uninstall %s" % parts[0]})
+    soft_rows.extend(dep_rows)   # 依赖垫底：不是用户装的，放最后不抢视线
     tabs.append({"name": "安装的软件 (%d)" % len(soft_rows),
                  "hint": "这台机器装过的全部软件，按来源分段 · 灰色的 brew 依赖不是你装的，"
                          "是其他包拖进来的 · 学校授权的 Office/Xmind 不在 brew 里，"
