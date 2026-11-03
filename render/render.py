@@ -103,36 +103,36 @@ def resolve_status(item, facts):
         if kind == "port":
             st = facts.port_state(arg)
             badges.append({"ok": st["up"], "label": "端口 %s" % arg,
-                           "detail": ("%s · pid %s" % (st.get("process"), st.get("pid"))) if st["up"] else "没在监听"})
+                           "detail": ("%s（pid %s）" % (st.get("process"), st.get("pid"))) if st["up"] else "没有程序在监听"})
         elif kind == "launchd":
             x = facts.launchd.get(arg.lower())
             if not x:
                 badges.append({"ok": False, "label": arg, "detail": "没有这个 plist"})
             else:
-                badges.append({"ok": x["loaded"], "label": arg,
-                               "detail": "已加载" if x["loaded"] else "已注册但未加载"})
+                badges.append({"ok": x["loaded"], "label": "开机自启",
+                               "detail": "已加载" if x["loaded"] else "没在运行（plist 在，进程没跑）"})
         elif kind == "dir":
             d = facts.dir_lookup(arg)
             if d is None:
                 badges.append({"ok": None, "label": short(arg, 2), "detail": "未采集"})
             elif not d["exists"]:
-                badges.append({"ok": False, "label": short(arg, 2), "detail": "目录不存在"})
+                badges.append({"ok": False, "label": "文件位置", "detail": "目录不存在（东西被删/移走？）"})
             else:
-                badges.append({"ok": True, "label": "目录",
+                badges.append({"ok": True, "label": "文件存在",
                                "detail": "%s%s" % (mb(d.get("mb")), "（统计不全）" if d.get("partial") else "")})
         elif kind == "cmd":
             c = facts.cmds.get(arg.lower())
-            badges.append({"ok": bool(c), "label": arg, "detail": c["path"] if c else "解析不到"})
+            badges.append({"ok": bool(c), "label": "命令可用", "detail": c["path"] if c else "PATH 里找不到"})
         elif kind == "brew":
             f = facts.formulae.get(arg.lower())
             ck = facts.casks.get(arg.lower())
             hit = f or ck
-            badges.append({"ok": bool(hit), "label": "brew %s" % arg,
+            badges.append({"ok": bool(hit), "label": "brew 已装",
                            "detail": (hit or {}).get("version", "") or ("未安装" if not hit else "")})
         elif kind == "app":
             hit = next((a for a in facts.apps if a["bundle"].lower() == arg.lower()), None)
-            badges.append({"ok": bool(hit), "label": "App %s" % arg,
-                           "detail": hit["path"] if hit else "不在 /Applications"})
+            badges.append({"ok": bool(hit), "label": "应用已装",
+                           "detail": hit["path"] if hit else "不在 /Applications 里"})
         elif kind == "probe":
             h = facts.http.get(int(arg))
             if h is None:
@@ -140,8 +140,8 @@ def resolve_status(item, facts):
             else:
                 badges.append({
                     "ok": h["ok"],
-                    "label": "%s 探活" % arg,
-                    "detail": ("HTTP /health OK" if h["ok"] else "失败") + " · " + (h.get("detail") or "")[:60],
+                    "label": "%s 服务正常" % arg,
+                    "detail": (h.get("detail") or ""),
                 })
         else:
             badges.append({"ok": None, "label": probe, "detail": ""})
@@ -211,7 +211,7 @@ def coverage(notes, facts):
     return missing, drift
 
 
-def item_detail(it, facts):
+def item_detail(it, facts, badges=None, broken=None):
     L = []
     for key, label in (("what", "是什么"), ("why", "为什么")):
         if it.get(key):
@@ -232,9 +232,30 @@ def item_detail(it, facts):
         L.append("注意：   " + it["note"])
     if it.get("docs"):
         L.append("文档：   " + "、".join(it["docs"]))
+    if badges:
+        L.append("检查：")
+        for b in badges:
+            mark = "\u2713" if b["ok"] else ("\u2717" if b["ok"] is False else "\u25d0")
+            extra = b.get("detail") or ""
+            L.append("  %s %s%s" % (mark, b["label"], ("\uff0c%s" % extra) if extra else ""))
+    if broken:
+        L.append("注意：以上 \u2717 的项就是「异常」的原因。")
     if it.get("confirmed") is False:
         L.append("（这条是按痕迹推断的，待确认）")
     return "\n".join(L)
+
+
+def state_word(badges):
+    """把一堆探针结果折叠成用户语言：● 正常 / ● 异常 / ◐ 部分未检查。
+    探针的含义用户不需要知道；词和点的颜色已经说完了。"""
+    if not badges:
+        return "\u2014 未检查", "", []
+    if any(b["ok"] is False for b in badges):
+        return "\u25cf 异常", "bad", [b for b in badges if b["ok"] is False]
+    unknown = [b for b in badges if b["ok"] is None]
+    if unknown:
+        return "\u25d0 部分未检查", "dim", unknown
+    return "\u25cf 正常", "ok", []
 
 
 def build_dashboard(data, notes, facts, missing, drift):
@@ -266,12 +287,11 @@ def build_dashboard(data, notes, facts, missing, drift):
         if not probes:
             continue
         badges = resolve_status(it, facts)
-        all_ok = bool(badges) and all(b["ok"] for b in badges if b["ok"] is not None)
-        any_bad = any(b["ok"] is False for b in badges)
+        word, tag, _ = state_word(badges)
         services.append({
             "title": it.get("title", ""),
-            "state": "bad" if any_bad else ("ok" if all_ok else "dim"),
-            "line": (it.get("what") or it.get("why") or "")[:64],
+            "state": tag,
+            "line": word.replace("\u25cf ", "").replace("\u25d0 ", "").replace("\u2014 ", ""),
             "where": it.get("where") or "",
         })
 
@@ -303,19 +323,17 @@ def build_view(data, notes):
         rows = []
         for it in sel:
             badges = resolve_status(it, facts)
-            state = " ".join("%s%s" % ("[OK] " if b["ok"] else ("[!!] " if b["ok"] is False else "[--] "),
-                                    b["label"]) for b in badges)
-            bad = any(b["ok"] is False for b in badges)
+            word, tag, broken = state_word(badges)
             rows.append({
-                "cells": [it.get("title", ""), state, it.get("where") or "",
+                "cells": [it.get("title", ""), word, it.get("where") or "",
                           (it.get("run") or [""])[0]],
-                "tag": "bad" if bad else ("ok" if badges and all(b["ok"] for b in badges) else ""),
+                "tag": tag,
                 "copy": it.get("where") or (it.get("run") or [""])[0],
-                "detail": item_detail(it, facts),
+                "detail": item_detail(it, facts, badges, broken),
             })
         return {"name": "%s (%d)" % (title, len(sel)),
-                "hint": "行色图例：绿=全部探针通过 · 黑=没有失败但有探针未采集 · 红=有探针失败 · "
-                        "点行看底部详情 · ⌘C 复制 · 双击路径在 Finder 打开",
+                "hint": "状态一目了然：\u25cf 绿=正常 \u25cf 红=异常 \u25d0 灰=部分未检查 \u2014 黑=没查 · "
+                        "点一行，底部有这项的完整说明 · \u2318C 复制 · 双击路径在 Finder 打开",
                 "columns": [{"h": "条目", "w": 300}, {"h": "状态", "w": 320},
                             {"h": "位置", "w": 320}, {"h": "怎么跑", "w": 280}],
                 "rows": rows}

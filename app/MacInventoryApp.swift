@@ -421,8 +421,8 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
             let title = NSTextField(labelWithString: sv.title)
             title.font = .systemFont(ofSize: 12, weight: .medium)
             let line = NSTextField(labelWithString: sv.line)
-            line.font = .systemFont(ofSize: 10)
-            line.textColor = .secondaryLabelColor
+            line.font = .systemFont(ofSize: 10.5, weight: .medium)
+            line.textColor = sv.state == "ok" ? .systemGreen : (sv.state == "bad" ? .systemRed : .secondaryLabelColor)
             line.lineBreakMode = .byTruncatingMiddle
             line.cell?.truncatesLastVisibleLine = true
             line.cell?.wraps = false
