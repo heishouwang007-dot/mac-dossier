@@ -506,20 +506,20 @@ def build_view(data, notes):
             soft_rows.append({"cells": ["pipx", parts[0], parts[1] if len(parts) > 1 else "", ""],
                               "tag": "", "copy": parts[0],
                               "detail": "pipx 独立 Python 环境\n卸载：pipx uninstall %s" % parts[0]})
+    # uv python list 列的是「uv 能看到的所有 Python」——brew/系统装的也在内，
+    # 重复计入会是假账。只保留 uv 自己装的（路径在 ~/.local/share/uv 下）。
     seen_uv = set()
     for line in pkgs.get("uv_python") or []:
-        if "<download available>" in line:
+        if "<download available>" in line or "/.local/share/uv/" not in line:
             continue
         parts = line.split()
-        if not parts:
-            continue
-        # uv python list 每个运行时会以不同变体重复出现，按名字去重
-        if parts[0] in seen_uv:
+        if not parts or parts[0] in seen_uv:
             continue
         seen_uv.add(parts[0])
         soft_rows.append({"cells": ["uv 运行时", parts[0], "", line[line.find("/"):] if "/" in line else ""],
                           "tag": "", "copy": parts[0],
-                          "detail": "uv 管理的 Python 运行时"})
+                          "detail": "uv 自己装的 Python 运行时（brew/系统的那份不算）\n"
+                                  "卸载：uv python uninstall %s" % parts[0]})
     tabs.append({"name": "安装的软件 (%d)" % len(soft_rows),
                  "hint": "这台机器装过的全部软件，按来源分段 · 灰色的 brew 依赖不是你装的，"
                          "是其他包拖进来的 · 学校授权的 Office/Xmind 不在 brew 里，"
