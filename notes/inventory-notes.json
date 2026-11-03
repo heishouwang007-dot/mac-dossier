@@ -1,0 +1,576 @@
+{
+  "version": 1,
+  "host": "heishouwangdeMacBook-Pro-2",
+  "updated_at": "2026-11-03",
+  "about": "Mac 这台的说明层，与 Windows 那套同 schema。installed_by: me=我装的 / system=系统自带 / vendor=第三方或校园部署。confirmed=false 是按痕迹推断的，待本人确认。事实由 collect/collect.py 采集；两边不一致会出现在「未登记」标签页。",
+  "items": [
+    {
+      "id": "llm-8802",
+      "kind": "service",
+      "title": "8802 · 同济 MaaS 反代（LLM 主通道）",
+      "where": "/Users/heishouwang/tongji-llm-api",
+      "what": "server882.py：校园 MaaS 的 HiAgent 上游 → OpenAI/Anthropic/Responses 三套协议，本机 127.0.0.1:8802。与远程桌面那份是同一个仓库维护的两份部署（Mac 这份是主开发位）。",
+      "why": "pi/WorkBuddy/CodeBuddy 的模型端点；Bearer key 无 IP 限制。",
+      "run": [
+        "Mac 上：双击 scripts/AI接口8802官方开关.command（开/关一体）",
+        "远程桌面那份：本地跑 vdi-8802-sync 同步代码"
+      ],
+      "stop": [
+        "双击同一个开关 command（判定已就绪 → 关闭）"
+      ],
+      "config": [
+        "~/tongji-llm-api/8802/config.json",
+        "~/tongji-llm-api/8802/maas_api_key.txt"
+      ],
+      "status": [
+        "port:8802",
+        "dir:/Users/heishouwang/tongji-llm-api"
+      ],
+      "commands": [
+        "python3"
+      ],
+      "docs": [
+        "tongji-llm-api/8802/README.md"
+      ],
+      "covers": [
+        "/Users/heishouwang/tongji-llm-api/8802",
+        "/Users/heishouwang/tongji-llm-api/scripts"
+      ],
+      "note": "开关脚本的判定看 /health 响应体，不是 lsof；启动前清代理环境变量（urllib 会偷读系统代理）。这个仓库 27 GB，大头是 traces/（对话轨迹，gitignore 了）。",
+      "installed_by": "me"
+    },
+    {
+      "id": "llm-8810",
+      "kind": "service",
+      "title": "8810 · 同济 AGI 桥接（vLLM 通道）",
+      "where": "/Users/heishouwang/tongji-llm-api/8810",
+      "what": "tj_agi_bridge.py + xlate.py：直连校园 vLLM 接口，多 Key 额度 FIFO 轮转。必须物理校园网出口（和 8802 的区别之一）。",
+      "why": "8802 的模型超集之外的补充（6 个套餐内模型）；Key 按额度过期时间排序优先消耗。",
+      "run": [
+        "双击 scripts/AI接口8810桥接开关.command"
+      ],
+      "stop": [
+        "再点一次开关"
+      ],
+      "config": [
+        "~/tongji-llm-api/8810/apikey.txt",
+        "~/tongji-llm-api/8810/keys_quota.json"
+      ],
+      "status": [
+        "port:8810"
+      ],
+      "docs": [
+        "tongji-llm-api/8810/README.md"
+      ],
+      "covers": [
+        "/Users/heishouwang/tongji-llm-api/8810"
+      ],
+      "installed_by": "me"
+    },
+    {
+      "id": "clash-verge",
+      "kind": "service",
+      "title": "Clash Verge · 系统代理（mihomo 内核）",
+      "where": "/opt/homebrew/Caskroom",
+      "what": "brew cask；混合端口 127.0.0.1:7897（HTTP+SOCKS 同口），控制端口混在里有 9097。校园网两层修复在它的 GLOBAL 增强文件里（DNS + Script.js 路由），订阅无关。",
+      "why": "CLI 工具不读系统代理，curl/brew/git 必须显式给 http://127.0.0.1:7897；外网下载不走代理会卡几十分钟。",
+      "run": [
+        "open -a 'Clash Verge'"
+      ],
+      "stop": [
+        "osascript -e 'quit app \"Clash Verge\"'"
+      ],
+      "status": [
+        "port:7897",
+        "app:Clash Verge",
+        "dir:/opt/homebrew/Caskroom"
+      ],
+      "brew": [
+        "clash-verge"
+      ],
+      "docs": [
+        "~/.pi/agent/AGENTS.md 的网络一节"
+      ],
+      "note": ".Merge.yaml 的 prepend-rules 会被静默忽略——规则必须走 Script.js；改完全局文件记得再备份 WebDAV。",
+      "confirmed": false,
+      "installed_by": "me"
+    },
+    {
+      "id": "vpnbar",
+      "kind": "service",
+      "title": "同济 VPN 菜单栏（TJ-VPN）+ openconnect",
+      "where": "/Applications",
+      "what": "swiftUI 菜单栏 App 包 openconnect；brew 里有 openconnect（隧道的真内核）。",
+      "why": "校外访问校园资源的隧道入口；分流逻辑让翻墙流量不进校园隧道。",
+      "run": [
+        "自动启动",
+        "ulatest: tjvpn on / tjvpn off"
+      ],
+      "status": [
+        "launchd:local.tongji.vpnbar"
+      ],
+      "launchd": [
+        "local.tongji.vpnbar"
+      ],
+      "docs": [
+        "tongji-vpn 仓库"
+      ],
+      "covers": [
+        "/Users/heishouwang/tongji-vpn"
+      ],
+      "installed_by": "me",
+      "brew": [
+        "openconnect"
+      ]
+    },
+    {
+      "id": "aiobar",
+      "kind": "service",
+      "title": "AI 接口开关 · 菜单栏",
+      "where": "/Applications",
+      "what": "菜单栏 App，一键开关 8801/8802/8810/8899 四个本地通道；LaunchAgent local.tongji.aiobar。实际调的是 tongji-llm-api/scripts/*.command。",
+      "why": "免开终端管理通道；pi / CodeBuddy 等工具都依赖这些端点。",
+      "run": [
+        "自动启动（launchd）",
+        "手动: open -a 'AI接口开关'"
+      ],
+      "status": [
+        "launchd:local.tongji.aiobar"
+      ],
+      "launchd": [
+        "local.tongji.aiobar"
+      ],
+      "docs": [
+        "tongji-llm-api/app（源码）"
+      ],
+      "installed_by": "me"
+    },
+    {
+      "id": "tongji-services",
+      "kind": "tool",
+      "title": "tongji-* 一族仓库（llm-api / vpn / vdi-ssh / vdi-macos-client-patch）",
+      "where": "/Users/heishouwang/tongji-llm-api",
+      "what": "四套自治仓库：llm-api=LLM 通道、vpn=校园隧道分流、vdi-ssh=远程桌面接入、macos-client-patch=锐捷客户端二进制修复。皆为「改仓库=改线上」的符号链接部署。",
+      "why": "校园生存全家桶；远程桌面 8802 从这里 vdi-8802-sync 同步。",
+      "status": [
+        "dir:/Users/heishouwang/tongji-llm-api",
+        "dir:/Users/heishouwang/tongji-vpn",
+        "dir:/Users/heishouwang/tongji-vdi-ssh",
+        "dir:/Users/heishouwang/tongji-vdi-macos-client-patch"
+      ],
+      "docs": [
+        "各仓库 README"
+      ],
+      "installed_by": "me",
+      "covers": [
+        "/Users/heishouwang/tongji-llm-api/8802",
+        "/Users/heishouwang/tongji-llm-api/scripts",
+        "/Users/heishouwang/tongji-llm-api/8810",
+        "/Users/heishouwang/tongji-llm-api/tools",
+        "/Users/heishouwang/tongji-vpn",
+        "/Users/heishouwang/tongji-vdi-ssh",
+        "/Users/heishouwang/tongji-vdi-macos-client-patch"
+      ]
+    },
+    {
+      "id": "clash-stack",
+      "kind": "tool",
+      "title": "clash-stack · 代理配置与多端部署",
+      "where": "/Users/heishouwang/clash-stack",
+      "what": "Clash 系配置仓库：本机 Script.js 分流、remote-windows/（远程桌面 mihomo 部署）、clash-verge-backup/fork（历史备份和分支）。",
+      "why": "校园分流规则的唯一真源；远程桌面代理也是从这里的脚本部署的。",
+      "status": [
+        "dir:/Users/heishouwang/clash-stack"
+      ],
+      "covers": [
+        "/Users/heishouwang/clash-stack",
+        "/Users/heishouwang/clash-verge-backup",
+        "/Users/heishouwang/clash-verge-fork"
+      ],
+      "installed_by": "me"
+    },
+    {
+      "id": "pi",
+      "kind": "cli",
+      "title": "pi · coding agent 宿主 + 文档工具链",
+      "where": "/Users/heishouwang/.pi",
+      "what": "pi-coding-agent（npm）+ ~/.pi/agent 配置/技能/日志，会话模型经 8802 通道。配套文档工具：soffice（文本层转换，CJK→PDF 走 Word）和 officecli（.docx/.xlsx 外科手术）。",
+      "why": "日常编码主力；skills 系统挂接 anysearch/gh-cli/browser-act 等。",
+      "run": [
+        "pi"
+      ],
+      "config": [
+        "/Users/heishouwang/.pi/agent/AGENTS.md",
+        "/Users/heishouwang/.pi/agent/journal.md"
+      ],
+      "status": [
+        "dir:/Users/heishouwang/.pi/agent",
+        "cmd:soffice",
+        "cmd:officecli"
+      ],
+      "commands": [
+        "soffice",
+        "officecli"
+      ],
+      "covers": [
+        "/Users/heishouwang/.pi/agent",
+        "/Users/heishouwang/.pi",
+        "/Users/heishouwang/.agents/skills",
+        "/Users/heishouwang/.agents"
+      ],
+      "note": "AGENTS.md 是每会话的工作约定（代理、搜索、委派规则）；journal.md 是踩坑 журнал。",
+      "installed_by": "me"
+    },
+    {
+      "id": "claude-grok-hermes",
+      "kind": "cli",
+      "title": "Agent CLI 一族：claude / grok / hermes / agent / qoderclicn",
+      "where": "/Users/heishouwang/.local/bin",
+      "what": "多套 Agent CLI 共存，hermes 还有自己的运行时目录（6.3 GB，含节点/缓存）。",
+      "why": "不同任务用不同 Agent；都经 8802/8810 或自带端点。",
+      "run": [
+        "claude --version（示例）"
+      ],
+      "status": [
+        "dir:/Users/heishouwang/.local/bin",
+        "dir:/Users/heishouwang/.hermes",
+        "cmd:claude",
+        "cmd:grok",
+        "cmd:hermes"
+      ],
+      "covers": [
+        "/Users/heishouwang/.hermes"
+      ],
+      "commands": [
+        "claude",
+        "grok",
+        "hermes",
+        "agent",
+        "qoderclicn"
+      ],
+      "confirmed": false,
+      "note": "omlx 也在这一类（本地 MLX 模型服务 ~omlx/bin）。",
+      "installed_by": "me"
+    },
+    {
+      "id": "search-tools",
+      "kind": "cli",
+      "title": "搜索/抓取工具：ketch · anysearch · repo-search · browser-act · gum",
+      "where": "/opt/homebrew/bin",
+      "what": "ketch=网页搜索/scrape（exa key 在钥匙串）、anysearch=结构化垂直查询、repo-search=GitHub 定位、browser-act=浏览器自动化。都是 ~/.pi 工作流的一部分。",
+      "why": "AGENTS.md 规定的默认搜索路径：英文 ketch 先行、中文补充，GitHub 用 repo-search→gh。",
+      "run": [
+        "ketch doctor",
+        "browser-act browser list"
+      ],
+      "status": [
+        "cmd:ketch",
+        "cmd:anysearch",
+        "cmd:browser-act",
+        "cmd:repo-search"
+      ],
+      "commands": [
+        "ketch",
+        "anysearch",
+        "repo-search",
+        "browser-act",
+        "gum"
+      ],
+      "brew": [
+        "ketch",
+        "gum"
+      ],
+      "docs": [
+        "~/.pi/agent/skills/anysearch/SKILL.md"
+      ],
+      "installed_by": "me"
+    },
+    {
+      "id": "dev-runtime",
+      "kind": "runtime",
+      "title": "开发运行时与基础 CLI（brew）",
+      "where": "/opt/homebrew",
+      "what": "python@3.14/3.12、node+pnpm@9、rustup、uv、mise、fzf、gh、ripgrep、yq、cmake。通用 CLI 都在 /opt/homebrew；uv 管理解释器与 brew 的并列。",
+      "why": "各工具锁不同版本；mise 管一部分全局工具版本。",
+      "run": [
+        "python3 -V",
+        "node -v",
+        "uv python list",
+        "mise ls --global"
+      ],
+      "status": [
+        "cmd:python3",
+        "cmd:node",
+        "cmd:uv",
+        "cmd:mise",
+        "dir:/opt/homebrew/Caskroom"
+      ],
+      "commands": [
+        "python3",
+        "node",
+        "npm",
+        "pnpm",
+        "uv",
+        "pipx",
+        "mise",
+        "cargo"
+      ],
+      "brew": [
+        "python@3.14",
+        "python@3.12",
+        "node",
+        "pnpm@9",
+        "rustup",
+        "pipx",
+        "fzf",
+        "gh",
+        "ripgrep",
+        "yq",
+        "cmake"
+      ],
+      "covers": [
+        "/Users/heishouwang/.rustup",
+        "/Users/heishouwang/.cargo"
+      ],
+      "note": "命令行工具都用 brew 装在 /opt/homebrew；8802 服务用的是 brew python3.12（开关脚本里写死）。",
+      "installed_by": "me"
+    },
+    {
+      "id": "llama",
+      "kind": "tool",
+      "title": "本地推理与媒体工具：llama.cpp · oMLX · hf · ffmpeg",
+      "what": "llama.cpp（llama-server）+ oMLX 菜单栏 + hf CLI；MLX 是 Apple Silicon 原生后端。 ffmpeg 也归这里：8802 的视频抽帧兜底用的就是它（本机和远程桌面各装了一份）。",
+      "why": "离线推理兜底；MLX 是 Apple Silicon 原生后端。",
+      "run": [
+        "llama-server --version",
+        "open -a oMLX"
+      ],
+      "status": [
+        "cmd:llama-server",
+        "cmd:omlx",
+        "app:oMLX",
+        "cmd:hf"
+      ],
+      "commands": [
+        "llama-server",
+        "omlx",
+        "hf"
+      ],
+      "brew": [
+        "llama.cpp",
+        "ffmpeg"
+      ],
+      "installed_by": "me"
+    },
+    {
+      "id": "office-suite",
+      "kind": "app",
+      "title": "Office 三件套 + WPS（campus 授权，brew-poison）",
+      "installed_by": "vendor",
+      "what": "Microsoft Word/Excel/PowerPoint/Outlook。**不在 brew 里**——校园授权预装，brew --force 升级会撕掉激活（Xmind 的事故先例）。",
+      "why": "学校统一部署；CJK→PDF 的路径走 Word（soffice 字体盲）。",
+      "run": [
+        "open -a 'Microsoft Word'"
+      ],
+      "status": [],
+      "note": "保持 unmanaged，永远别 brew upgrade --cask 它们。",
+      "apps": [
+        "Microsoft Word",
+        "Microsoft Excel",
+        "Microsoft PowerPoint",
+        "Microsoft Outlook"
+      ]
+    },
+    {
+      "id": "xmind",
+      "kind": "app",
+      "title": "Xmind 26.02（campus 版，**不要** brew 管理）",
+      "installed_by": "vendor",
+      "what": "校园构建的 Xmind，license-bound。实测一次 brew --force 升级把它换成零售版并撕掉激活。",
+      "run": [
+        "open -a Xmind"
+      ],
+      "status": [
+        "app:Xmind"
+      ],
+      "apps": [
+        "Xmind"
+      ],
+      "note": "已在 AGENTS.md 里登记为 brew-poison：禁止 brew 采纳/升级。",
+      "covers": [
+        "/Users/heishouwang/WorkBuddy"
+      ]
+    },
+    {
+      "id": "clash-apps",
+      "kind": "app",
+      "title": "日常 App（brew cask 管理的 15 个）",
+      "installed_by": "me",
+      "what": "Applite、Keka、Obsidian、Telegram、TencentMeeting、WeChat、CrossOver、Docker Desktop、Jellyfin、Mos、BLEUnlock、BetterAndBetter、CoolMyMac、android-platform-tools、copilot-cli。",
+      "why": "brew list --cask 是权威清单（15 个）；升级统一 applite/brew 处理。",
+      "status": [
+        "brew:applite",
+        "brew:keka",
+        "brew:obsidian",
+        "brew:telegram"
+      ],
+      "brew": [
+        "applite",
+        "keka",
+        "obsidian",
+        "telegram",
+        "tencent-meeting",
+        "wechat",
+        "crossover",
+        "docker-desktop",
+        "jellyfin-media-player",
+        "mos",
+        "bleunlock",
+        "betterandbetter",
+        "coolmymac",
+        "android-platform-tools",
+        "copilot-cli"
+      ]
+    },
+    {
+      "id": "launchd-local",
+      "kind": "task",
+      "title": "LaunchAgents（local.* 三个是我建的 + 两个 google 是装的）",
+      "installed_by": "me",
+      "where": "/Users/heishouwang/Library/LaunchAgents",
+      "what": "local.tongji.vpnbar（同济VPN菜单栏）、local.tongji.aiobar（AI接口开关）、local.screenshot-path（截图路径工具）；.bak-* 是改坏时留的备份，不生效。boegam.eshow 是外接显示器的服务，google.keystone 是 Chrome 更新器。",
+      "why": "菜单栏 App 需要 launchd 才能开机自启（RunAtLoad）。",
+      "run": [
+        "launchctl list | grep local"
+      ],
+      "stop": [
+        "launchctl bootout gui/$UID/local.tongji.xxx"
+      ],
+      "status": [
+        "launchd:local.tongji.vpnbar",
+        "launchd:local.tongji.aiobar",
+        "launchd:local.screenshot-path",
+        "dir:/Users/heishouwang/Library/LaunchAgents"
+      ],
+      "launchd": [
+        "local.tongji.vpnbar",
+        "local.tongji.aiobar",
+        "local.screenshot-path",
+        "com.boegam.eshow.service"
+      ]
+    },
+    {
+      "id": "docker",
+      "kind": "tool",
+      "title": "Docker Desktop + colima",
+      "what": "Docker Desktop cask + 两个 LaunchDaemons（socket/vmnetd，当前未加载 = 没在跑）。~/docker 里有 firecrawl 等服务仓库。",
+      "why": "偶尔跑容器服务；平时不开（M5 Max 128G 无所谓内存，但没必要）。",
+      "run": [
+        "open -a Docker",
+        "colima status"
+      ],
+      "status": [
+        "dir:/Users/heishouwang/docker",
+        "brew:docker-desktop"
+      ],
+      "brew": [
+        "docker-desktop"
+      ],
+      "covers": [
+        "/Users/heishouwang/docker"
+      ],
+      "installed_by": "me"
+    },
+    {
+      "id": "timemachine",
+      "kind": "task",
+      "title": "Time Machine：没有配置备份目标",
+      "installed_by": "system",
+      "what": "系统能力是有的，但 tmutil 报 No destinations —— 重要数据实际靠仓库（git）+ 云盘 + 手工备份。",
+      "why": "列出这条是因为「以为有备份」比「知道没有」危险。",
+      "run": [
+        "tmutil destinationinfo"
+      ],
+      "status": []
+    },
+    {
+      "id": "ssh-surface",
+      "kind": "tool",
+      "title": "SSH：一把 ed25519 私钥（mac-vdi）",
+      "where": "/Users/heishouwang/.ssh",
+      "what": "id_ed25519_vdi 登录远程桌面用；config 里有 Host vdi 块（10.170.1.69:443）。",
+      "why": "远程接入的唯一凭据；指纹 SHA256:FqiEzeW…hjkLo。",
+      "run": [
+        "ssh vdi"
+      ],
+      "status": [
+        "dir:/Users/heishouwang/.ssh"
+      ],
+      "covers": [
+        "/Users/heishouwang/.ssh"
+      ],
+      "note": "私钥 600 无口令。丢了就在远程桌面里跑 vdi-sshd-fix.ps1 重新装公钥。",
+      "installed_by": "me"
+    },
+    {
+      "id": "proxy-env",
+      "kind": "tool",
+      "title": "shell 代理环境变量（.zshrc 里的动态 HTTP_PROXY）",
+      "what": "zshrc 把 HTTP(S)_PROXY/ALL_PROXY 指到 ${_CLASH_PORT}（Clash 的端口，动态解析），并带 NO_PROXY 例外。EXA_API_KEY 从钥匙串取。",
+      "why": "curl/brew/git 不读系统代理，必须环境变量；写死端口会跟 Clash 配置漂移，所以变量化。",
+      "run": [
+        "echo $HTTPS_PROXY"
+      ],
+      "config": [
+        "~/.zshrc"
+      ],
+      "status": [],
+      "installed_by": "me"
+    },
+    {
+      "id": "misc-tools",
+      "kind": "tool",
+      "title": "零散工具：aliyun-cli · cc-switch-cli · tag · tesseract · poppler · mac-定制 · scripts · grok_build",
+      "installed_by": "me",
+      "what": "aliyun-cli（阿里云 CLI）、cc-switch-cli（CC 切换）、tag/tesseract/poppler（媒体与 OCR）、~/mac-定制（系统定制脚本）、~/scripts、~/grok_build（Grok 构建实验）、~/.config。",
+      "status": [
+        "brew:aliyun-cli",
+        "brew:cc-switch-cli",
+        "brew:tag",
+        "brew:tesseract",
+        "brew:poppler",
+        "dir:/Users/heishouwang/mac-定制",
+        "dir:/Users/heishouwang/scripts",
+        "dir:/Users/heishouwang/grok_build",
+        "dir:/Users/heishouwang/.config"
+      ],
+      "brew": [
+        "aliyun-cli",
+        "cc-switch-cli",
+        "tag",
+        "tesseract",
+        "poppler"
+      ],
+      "covers": [
+        "/Users/heishouwang/mac-定制",
+        "/Users/heishouwang/scripts",
+        "/Users/heishouwang/grok_build",
+        "/Users/heishouwang/.config"
+      ]
+    },
+    {
+      "id": "dot-apps",
+      "kind": "app",
+      "what": "~/Applications 下的网站打包 App（Chrome Apps）：Claude Code URL Handler、Kimi 官网、Doubao Apps、MD导入Xmind4。",
+      "installed_by": "me",
+      "apps": [
+        "Claude Code URL Handler",
+        "Kimi AI 官网 - K2.6 上线",
+        "MD导入Xmind4"
+      ],
+      "covers": [
+        "/Users/heishouwang/Applications"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# 运行数据不入库
+app/build/
+.cache/
+.DS_Store
+*.log

@@ -1,0 +1,73 @@
+#!/bin/bash
+# mac-inventory —— 生成「这台 Mac 上有什么」清单并打开原生窗口
+#
+# 分工（与 tongji-vdi-ssh 的 vdi-inventory 同构）：
+#   collect/collect.py          只读采集 → inventory.json（事实）
+#   notes/inventory-notes.json  人写的说明：为什么装、怎么跑、怎么停
+#   render/render.py            两者合并 → inventory-view.json + Markdown
+#   app/                        纯 AppKit 查看器（swiftc 直编，无 Xcode 依赖）
+#   本脚本                       串起来
+#
+# 用法:
+#   mac-inventory              采集 → 渲染 → 打开窗口（约 30 秒）
+#   mac-inventory --render-only 用上次采集的 json 重渲染（改完 notes 用这个，几秒）
+#   mac-inventory --md          终端里看 Markdown 版
+#   mac-inventory --app-only    不采集，直接打开窗口
+set -u
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # 允许经 ~/.local/bin 符号链接调用
+# BASH_SOURCE 只给文件名时（source 场景）兜底
+[ -d "$REPO/collect" ] || REPO="$HOME/mac-inventory"
+
+CACHE="$HOME/.cache/mac-inventory"
+SNAP="$CACHE/inventory.json"
+VIEW="$CACHE/inventory-view.json"
+MD="$CACHE/inventory.md"
+APP="$REPO/app/build/这台Mac上有什么.app"
+
+say()  { printf '%s\n' "$*"; }
+die()  { printf '✗ %s\n' "$*" >&2; exit 1; }
+step() { printf '\n== %s ==\n' "$*"; }
+
+render() {
+  python3 "$REPO/render/render.py" --json "$SNAP" \
+    --notes "$REPO/notes/inventory-notes.json" \
+    --view "$VIEW" --md "$MD" || die "渲染失败"
+}
+
+MODE=all
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --render-only) MODE=render ;;
+    --md)          MODE=md ;;
+    --app-only)    MODE=app ;;
+    -h|--help)     sed -n '2,18p' "$0"; exit 0 ;;
+    *)             printf '✗ 不认识的参数: %s\n' "$1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+# 没编译过就现场编（swiftc 是系统自带的，十几秒）
+if [ ! -d "$APP" ]; then
+  step "首次运行：编译查看器"
+  "$REPO/app/build.sh" || die "编译失败"
+fi
+
+case "$MODE" in
+  md)
+    [ -f "$SNAP" ] || die "还没有快照，先跑一次 mac-inventory"
+    render >/dev/null; cat "$MD"; exit 0 ;;
+  render)
+    [ -f "$SNAP" ] || die "还没有快照，先跑一次 mac-inventory"
+    step "用上次的快照重新渲染"; render ;;
+  app)
+    : ;;
+  all)
+    step "采集（只读，约 30 秒）"
+    python3 "$REPO/collect/collect.py" --out "$SNAP" || die "采集失败"
+    step "渲染"; render ;;
+esac
+
+[ -f "$VIEW" ] || die "缺 $VIEW（先跑一次完整流程）"
+step "打开窗口"
+open "$APP"
