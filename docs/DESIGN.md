@@ -22,3 +22,13 @@
 - **AppKit 布局**：NSTabView 的 item.view 需要显式 `frame = tabView.contentRect`，
   否则内容区几何不定（实测表格只出一两行）；NSTableColumn 的自动调整在
   `.noColumnAutoresizing` 下由自己按比例铺。
+
+## 无头验证 AppKit 交互的三个坑（2026-11-03，修交互 bug 时实测）
+
+1. **System Events 的 `click at {x,y}` 不是真点击**：它只做 AXPress 命中测试，
+   返回被点中的元素描述，但驱动不了 NSTableView 的选择/双击。
+2. **`CGEvent.postToPid` 对非 key 状态进程直接丢事件**（keyDown、mouse 都一样）。
+   真要用合成事件：`e.post(tap: .cghidEventTap)` 会话级注入 = 等同真实硬件事件；
+   或 `System Events keystroke`（前提：App 已 frontmost + 辅助功能已授权）。
+3. **验证快捷键**看 `pbpaste`（清空→发 ⌘C→读回，端到端）；**验证双击**看
+   Finder 窗口数（close every window → 双击 → count）。
