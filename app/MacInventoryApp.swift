@@ -65,6 +65,8 @@ final class TabPane: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         }
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.target = self                        // doubleAction 的应答者
+        tableView.action = #selector(rowClicked(_:))
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.rowHeight = 26
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
@@ -111,6 +113,13 @@ final class TabPane: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     // MARK: delegate（view-based，控制颜色和字体）
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { TableRowView() }
+
+    // 选中变化（点击、↑↓键盘、selectRowIndexes 全都会走这里，比 action 可靠）
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        onSelection()
+    }
+
+    @objc func rowClicked(_ sender: Any?) { onSelection() }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?,
                    row: Int) -> NSView? {
@@ -203,6 +212,23 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         self.viewPath = viewPath
         super.init()
         buildUI()
+        installKeyMonitors()
+    }
+
+    /// 无主菜单的 App：按钮的 keyEquivalent 不保证全局生效，用事件监视器兜底
+    private func installKeyMonitors() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] ev in
+            guard let self = self, ev.modifierFlags.contains(.command) else { return ev }
+            if ev.charactersIgnoringModifiers == "c" {
+                self.copyCurrent()
+                return nil
+            }
+            if ev.charactersIgnoringModifiers == "r" {
+                self.reload()
+                return nil
+            }
+            return ev
+        }
     }
 
     private func buildUI() {
@@ -279,9 +305,6 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
             item.view = scroll
             tabView.addTabViewItem(item)
             pane.onSelection = { [weak self] in self?.selectionChanged() }
-            // 选中行回调：TableView 没有 selection action，用 delegate 的 didSelectRow
-            pane.tableView.action = #selector(tableViewClicked)
-            pane.tableView.target = self
             panes.append(pane)
         }
         tabView.delegate = self   // 现在才安全
@@ -330,9 +353,11 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         w.delegate = self
         w.makeKeyAndOrderFront(nil)
         selectPane(0)
-        // 开窗默认选中第一行，详情面板即刻有内容（对齐 Windows 行为）
-        if let g = panes.first?.tableView, g.numberOfRows > 0 {
-            g.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        // 开窗默认选中第一行 + 把键盘焦点交给表格：
+        // 不做 makeFirstResponder 的话 ↑↓ 不进表格（实测），必须先点一下才响应
+        if let g = panes.first?.tableView {
+            if g.numberOfRows > 0 { g.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false) }
+            w.makeFirstResponder(g)
         }
         selectionChanged()
         // 窗口尺寸变化时整套重算（NSTabView/表格的响应都依赖同一份 frame）
@@ -566,8 +591,6 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         selectionChanged()
     }
 
-    @objc func tableViewClicked() { selectionChanged() }
-
     func selectionChanged() {
         guard let pane = currentPane,
               let hint = hintLabel, let dv = detailView, let st = statusLabel else { return }
@@ -612,6 +635,8 @@ extension InventoryWindow: NSTabViewDelegate {
     func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
         selectionChanged()
         statusLabel.textColor = .secondaryLabelColor
+        // 焦点跟到新标签的表格，↑↓ 连续可用
+        if let g = currentPane?.tableView { window.makeFirstResponder(g) }
     }
 }
 

@@ -314,7 +314,7 @@ def build_view(data, notes):
                 "detail": item_detail(it, facts),
             })
         return {"name": "%s (%d)" % (title, len(sel)),
-                "hint": "选中一行看详情；Ctrl+C 复制路径；双击有路径的行在 Finder 里打开",
+                "hint": "点击或 ↑↓ 选中一行，详情在底部 · ⌘C 复制路径 · 双击路径行在 Finder 打开",
                 "columns": [{"h": "条目", "w": 300}, {"h": "状态", "w": 320},
                             {"h": "位置", "w": 320}, {"h": "怎么跑", "w": 280}],
                 "rows": rows}
