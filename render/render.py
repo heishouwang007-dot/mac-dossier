@@ -319,32 +319,30 @@ def build_view(data, notes):
     items = notes["items"]
     missing, drift = coverage(notes, facts)
 
-    def item_tab(title, sel):
-        rows = []
-        for it in sel:
+    # 「全部」= 归总索引页：21 条说明条目都在这，首列是分类。
+    # 后面的标签全是事实表；分组细节页取消（搜索按分类名过滤即可）。
+    order = ["服务与自启", "工具与运行时", "项目与配置", "学校授权"]
+    all_rows = []
+    for g in order:
+        for it in items:
+            if it.get("group", "项目与配置") != g:
+                continue
             badges = resolve_status(it, facts)
             word, tag, broken = state_word(badges)
-            rows.append({
-                "cells": [it.get("title", ""), word, it.get("where") or "",
-                          (it.get("run") or [""])[0]],
+            all_rows.append({
+                "cells": [g, it.get("title", ""), word, it.get("where") or ""],
                 "tag": tag,
                 "copy": it.get("where") or (it.get("run") or [""])[0],
                 "detail": item_detail(it, facts, badges, broken),
             })
-        return {"name": "%s (%d)" % (title, len(sel)),
-                "hint": "状态一目了然：\u25cf 绿=正常 \u25cf 红=异常 \u25d0 灰=部分未检查 \u2014 黑=没查 · "
-                        "点一行，底部有这项的完整说明 · \u2318C 复制 · 双击路径在 Finder 打开",
-                "columns": [{"h": "条目", "w": 300}, {"h": "状态", "w": 320},
-                            {"h": "位置", "w": 320}, {"h": "怎么跑", "w": 280}],
-                "rows": rows}
-
-    # 分组按语义（notes 里的 group 字段），不按「谁装的」——使用者的问题是
-    # 「这台机器能干什么」，不是「版权归属」。
-    order = ["服务与自启", "工具与运行时", "项目与配置", "学校授权"]
-    buckets = {g: [] for g in order}
-    for i in items:
-        buckets.setdefault(i.get("group", "项目与配置"), []).append(i)
-    tabs = [item_tab(g, buckets[g]) for g in order if buckets.get(g)]
+    tabs = [{
+        "name": "全部 (%d)" % len(all_rows),
+        "hint": "这台 Mac 的全部登记条目，按分类分段 · 状态：\u25cf 绿=正常 \u25cf 红=异常 "
+                "\u25d0 灰=部分未检查 \u2014 没=没查 · 搜索可按分类名过滤 · 点行看底部完整说明",
+        "columns": [{"h": "分类", "w": 130}, {"h": "条目", "w": 310},
+                    {"h": "状态", "w": 100}, {"h": "位置", "w": 380}],
+        "rows": all_rows,
+    }]
 
     # 系统能力
     cap_rows = []
@@ -369,7 +367,7 @@ def build_view(data, notes):
             "copy": c["path"],
             "detail": "%s\n%s\n%s" % (c["name"], c.get("version") or "", c["path"]),
         })
-    tabs.append({"name": "命令 (%d)" % len(cmd_rows),
+    tabs.append({"name": "命令行 (%d)" % len(cmd_rows),
                  "hint": "从 PATH 里解析出来的，版本是现跑的（每条都有超时，卡住不影响采集）",
                  "columns": [{"h": "命令", "w": 140}, {"h": "版本", "w": 380}, {"h": "路径", "w": 500}],
                  "rows": cmd_rows})
@@ -390,7 +388,7 @@ def build_view(data, notes):
                 x["run_at_load"], x["keep_alive"], "已加载" if x["loaded"] else "未加载",
                 "\n（这是个 .bak 备份文件，不会生效）" if x["backup"] else ""),
         })
-    tabs.append({"name": "自启 (%d)" % len(ld_rows),
+    tabs.append({"name": "开机自启 (%d)" % len(ld_rows),
                  "hint": "launchd = macOS 的开机自启。橙色 = 只剩备份文件，或注册了没加载",
                  "columns": [{"h": "Label", "w": 330}, {"h": "类型", "w": 120},
                              {"h": "状态", "w": 90}, {"h": "触发", "w": 120},
@@ -408,8 +406,9 @@ def build_view(data, notes):
             "detail": "端口 %s\n范围：%s\n进程：%s (pid %s)\n程序：%s" % (
                 l["port"], scope, l["process"], l["pid"], l.get("path") or "-"),
         })
-    tabs.append({"name": "端口 (%d)" % len(port_rows),
-                 "hint": "「仅本机」= 外面连不进来，只能本机或经 SSH 隧道访问",
+    tabs.append({"name": "运行中 (%d)" % len(port_rows),
+                 "hint": "现在正在监听的端口，即当前真的在跑的服务顺便看进程 · "
+                         "「仅本机」= 外面连不进来，只能本机或经 SSH 隧道访问",
                  "columns": [{"h": "端口", "w": 90}, {"h": "范围", "w": 120},
                              {"h": "进程", "w": 200}, {"h": "程序", "w": 600}],
                  "rows": port_rows})
@@ -427,8 +426,8 @@ def build_view(data, notes):
             "detail": "%s\n%s%s\n里面：%s" % (d["path"], mb(d.get("mb")),
                                             "（3 秒预算内没走完，偏小）" if d.get("partial") else "", kids),
         })
-    tabs.append({"name": "目录 (%d)" % len(dir_rows),
-                 "hint": "我的仓库和工具目录；橙色 = 大小统计不全",
+    tabs.append({"name": "位置 (%d)" % len(dir_rows),
+                 "hint": "我的仓库和工具目录 · 橙色 = 大小统计不全",
                  "columns": [{"h": "大小", "w": 100}, {"h": "路径", "w": 460},
                              {"h": "里面有什么", "w": 480}],
                  "rows": dir_rows})
@@ -443,28 +442,42 @@ def build_view(data, notes):
         brew_rows.append({"cells": ["cask", c["name"], c.get("version") or ""], "tag": "",
                           "copy": c["name"],
                           "detail": "brew cask: %s %s\n卸载：brew uninstall --cask %s" % (c["name"], c.get("version") or "", c["name"])})
-    brew_rows.sort(key=lambda r: (r["cells"][0], r["cells"][1]))
-    tabs.append({"name": "Homebrew (%d)" % len(brew_rows),
-                 "hint": "brew list 是这台机器上「装了什么」的权威来源；cask 对应 /Applications 里的 App",
-                 "columns": [{"h": "类型", "w": 90}, {"h": "包名", "w": 380}, {"h": "版本", "w": 450}],
-                 "rows": brew_rows})
-
-    # 应用
-    app_rows = []
+    # 「安装的软件」= brew 自装 + brew App + 应用 + brew 依赖 合一张表，
+    # 按来源分段（依赖垫底、灰色——它们不是我装的，是上面这些东西拖进来的）
+    soft_rows = []
+    for f in (data.get("brew") or {}).get("formulae") or []:
+        if not f.get("leaf"):
+            continue
+        soft_rows.append({"cells": ["brew 自装", f["name"], f.get("version") or "", ""],
+                          "tag": "", "copy": f["name"],
+                          "detail": "brew formula\n卸载：brew uninstall %s" % f["name"]})
+    for c in (data.get("brew") or {}).get("casks") or []:
+        soft_rows.append({"cells": ["brew App", c["name"], c.get("version") or "", "→ /Applications"],
+                          "tag": "", "copy": c["name"],
+                          "detail": "brew cask\n卸载：brew uninstall --cask %s" % c["name"]})
     for a in data.get("apps") or []:
         if a["system"]:
             continue
-        app_rows.append({
-            "cells": [a["name"], a.get("version") or "", a.get("bundle_id") or "", a["path"]],
+        soft_rows.append({
+            "cells": ["应用", a["name"], a.get("version") or "-", a.get("bundle_id") or ""],
             "tag": "dim" if not a.get("version") else "",
             "copy": a["path"],
-            "detail": "%s %s\n%s\n%s" % (a["name"], a.get("version") or "", a.get("bundle_id") or "", a["path"]),
+            "detail": "%s\n%s\n%s" % (a["name"], a.get("bundle_id") or "", a["path"]),
         })
-    tabs.append({"name": "应用 (%d)" % len(app_rows),
-                 "hint": "只列非系统的 .app；灰色的没有版本号（多见于脚本封装的包）",
-                 "columns": [{"h": "名称", "w": 280}, {"h": "版本", "w": 140},
-                             {"h": "Bundle ID", "w": 340}, {"h": "路径", "w": 280}],
-                 "rows": app_rows})
+    for f in (data.get("brew") or {}).get("formulae") or []:
+        if f.get("leaf"):
+            continue
+        soft_rows.append({"cells": ["brew 依赖", f["name"], f.get("version") or "", ""],
+                          "tag": "dim", "copy": f["name"],
+                          "detail": "%s 是上面某个包的依赖，不是单独装的\n卸载：brew uninstall %s"
+                                    % (f["name"], f["name"])})
+    tabs.append({"name": "安装的软件 (%d)" % len(soft_rows),
+                 "hint": "这台机器装过的全部软件，按来源分段 · 灰色的 brew 依赖不是你装的，"
+                         "是其他包拖进来的 · 学校授权的 Office/Xmind 不在 brew 里，"
+                         "见「全部」页学校授权分类",
+                 "columns": [{"h": "来源", "w": 110}, {"h": "名称", "w": 380},
+                             {"h": "版本", "w": 180}, {"h": "说明", "w": 300}],
+                 "rows": soft_rows})
 
     # 凭据
     cred_rows = []
@@ -475,27 +488,30 @@ def build_view(data, notes):
     for h in (data.get("ssh") or {}).get("hosts") or []:
         cred_rows.append({"cells": ["~/.ssh/config", "Host", h], "tag": "", "copy": h,
                           "detail": "ssh config 里的 Host 条目：%s" % h})
-    tabs.append({"name": "凭据 (%d)" % len(cred_rows),
-                 "hint": "只列位置、类型、指纹备注，不含任何密钥内容",
-                 "columns": [{"h": "位置", "w": 340}, {"h": "类型", "w": 130}, {"h": "说明", "w": 570}],
-                 "rows": cred_rows})
-
-    # 未登记
-    drift_rows = []
+    # 最后一个标签 = 私有凭据 + 未登记（用户拍板合并；敏感和"账实对不上"都属"要盯着的"）
+    priv_rows = []
+    for k in (data.get("ssh") or {}).get("keys") or []:
+        priv_rows.append({"cells": ["SSH 私钥", k["file"], k.get("detail") or ""],
+                          "tag": "", "copy": k["file"],
+                          "detail": "%s\n%s\n\n（只列指纹和备注名，不读内容）" % (k["file"], k.get("detail") or "")})
+    for h in (data.get("ssh") or {}).get("hosts") or []:
+        priv_rows.append({"cells": ["SSH Host", "~/.ssh/config", h], "tag": "", "copy": h,
+                          "detail": "ssh config 里的 Host 条目：%s" % h})
     for it in missing:
-        drift_rows.append({"cells": ["说明里有、机器上没有", it.get("title", ""), it.get("where", "")],
-                           "tag": "bad", "copy": it.get("where", ""),
-                           "detail": "清单过时了，或者东西被删了"})
+        priv_rows.append({"cells": ["未登记 · 应该没有", it.get("title", ""), it.get("where", "")],
+                          "tag": "bad", "copy": it.get("where", ""),
+                          "detail": "清单里说有这东西，但机器上找不到 —— 清单过时了，或者东西被删了"})
     for kind, name, extra, path in drift:
-        drift_rows.append({"cells": [kind, name, str(extra), short(path, 4)], "tag": "warn",
-                           "copy": path or "",
-                           "detail": "%s：%s\n%s\n\n要登记它：改 notes/inventory-notes.json 再跑 mac-inventory --render-only" % (
-                               kind, name, path or "")})
-    tabs.append({"name": "未登记 (%d)" % len(drift_rows),
-                 "hint": "机器上有、说明里没有 —— 这一段是给清单做维护用的，为空说明清单跟得上",
-                 "columns": [{"h": "类型", "w": 180}, {"h": "名称", "w": 380},
-                             {"h": "补充", "w": 150}, {"h": "位置", "w": 330}],
-                 "rows": drift_rows})
+        priv_rows.append({"cells": ["未登记", name, str(extra)], "tag": "warn",
+                          "copy": path or "",
+                          "detail": "机器上有、说明里没有（%s）\n%s\n\n要登记它：改 notes/inventory-notes.json "
+                                    "再跑 mac-inventory --render-only" % (kind, path or "")})
+    tabs.append({"name": "私有凭据及未登记 (%d)" % len(priv_rows),
+                 "hint": "私钥只显示指纹，不含密钥内容 · 「未登记」= 机器上有但说明里没写的，"
+                         "红色是说明过时，橙色是漏登记 —— 都是 0 最好",
+                 "columns": [{"h": "类型", "w": 200}, {"h": "名称 / 位置", "w": 440},
+                             {"h": "说明", "w": 420}],
+                 "rows": priv_rows})
 
     return {
         "title": "Mac 档案",
@@ -507,7 +523,14 @@ def build_view(data, notes):
             meta["collected_at"]),
         "footer": "%d 条说明 · 未登记 %d 条 · 采集只读" % (len(items), len(drift) + len(missing)),
         "dashboard": build_dashboard(data, notes, facts, missing, drift),
-        "tabs": tabs,
+        # 叙事顺序：是什么 → 装了什么 → 能用哪些命令 → 正在跑什么 → 什么会自启
+        #           → 机器底子 → 东西在哪 → 要盯着的（凭据与漂移）
+        "tabs": [t for k in ("全部", "安装的软件", "命令行", "运行中",
+                             "开机自启", "系统能力", "位置", "私有凭据")
+                 for t in tabs if t["name"].startswith(k)]
+                + [t for t in tabs if not t["name"].startswith(
+                    ("全部", "安装的软件", "命令行", "运行中", "开机自启",
+                     "系统能力", "位置", "私有凭据"))],
     }
 
 
@@ -569,7 +592,7 @@ def main(argv=None):
             f.write(build_md(data, notes) + "\n")
     print("%s · %d 个标签页 · %d 条说明 · 未登记 %s 条" % (
         view["title"], len(view["tabs"]), len(notes["items"]),
-        [t["name"] for t in view["tabs"] if t["name"].startswith("未登记")][0].split("(")[1].rstrip(")")))
+        [t["name"] for t in view["tabs"] if "未登记" in t["name"]][0].split("(")[1].rstrip(")")))
     if args.view:
         print("view: %s (%d KB)" % (args.view, os.path.getsize(args.view) // 1024))
     return 0
