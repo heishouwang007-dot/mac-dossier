@@ -193,6 +193,7 @@ enum ColumnID {
 final class InventoryWindow: NSObject, NSWindowDelegate {
     var model: ViewModel
     let viewPath: String
+    var isCollecting = false
     var window: NSWindow!
     var panes: [TabPane] = []
     var tabView: NSTabView!
@@ -720,16 +721,28 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         // ⌘C 复制完成后字变灰色的活儿交给下一次 selectionChanged / 搜索，不用定时器
     }
 
-    @objc func reload() {
-        // 数据不热更新：重读 view 文件 → 同一个窗口里整套重建。
-        // ⚠ 不许新建 NSWindow：旧实现把新窗的内容偷给旧窗，
-        //   留下一个空黑窗在最前面（用户实测"点刷新黑屏"）。
-        guard let d = FileManager.default.contents(atPath: viewPath),
-              let m = try? JSONDecoder().decode(ViewModel.self, from: d) else {
-            NSSound.beep()
-            statusLabel?.stringValue = "读不到 \(viewPath)，先跑一次 mac-inventory"
-            return
+    // 定位仓库（App 通常从仓库里的 build/ 运行；也可能被拷到别处）
+    private func findRepo() -> String? {
+        var cands: [String] = []
+        if let env = ProcessInfo.processInfo.environment["MAC_INVENTORY_REPO"] { cands.append(env) }
+        cands.append(NSHomeDirectory() + "/mac-inventory")
+        if let exe = Bundle.main.executableURL?.path {
+            var p = exe
+            for _ in 0..<5 { p = (p as NSString).deletingLastPathComponent }   // MacOS→Contents→X.app→build→app→repo
+            cands.append(p)
         }
+        for c in cands
+        where FileManager.default.fileExists(atPath: c + "/collect/collect.py")
+           && FileManager.default.fileExists(atPath: c + "/mac-inventory") {
+            return c
+        }
+        return nil
+    }
+
+    // 界面重建（读 view 文件 → 原窗重画）
+    private func rebuildFromViewFile() -> Bool {
+        guard let d = FileManager.default.contents(atPath: viewPath),
+              let m = try? JSONDecoder().decode(ViewModel.self, from: d) else { return false }
         model = m
         panes = []
         dashNumBoxes.removeAll()
@@ -738,13 +751,51 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         dashCapView = NSView()
         dashWarnView = NSView()
         buildUI()
-        // 刷新必须有可见反馈，否则用户无法区分「读了新数据」和「没反应」。
-        // 表格重建后的选中事件会异步再写一次状态栏，所以反馈要落在那之后。
-        DispatchQueue.main.asyncAfter(.now() + 0.15) {
-            let t = DateFormatter()
-            t.dateFormat = "HH:mm:ss"
-            self.statusLabel?.stringValue = "已重读数据 \(t.string(from: Date()))" +
-                " · 标题栏时间是上次【采集】时点，重新采集请跑 mac-inventory"
+        return true
+    }
+
+    @objc func reload() {
+        // 「刷新」的语义 = 重新采集（用户定的，也对：看板上的运行态是分钟级变化的，
+        // 重读几分钟前的缓存没有意义）。采集 ~40 秒，后台跑，不冻结界面。
+        if isCollecting {
+            statusLabel?.stringValue = "已经在采集中了——brew/端口/探活走完约需一分钟"
+            return
+        }
+        guard let repo = findRepo() else {
+            // App 被拷出了仓库（例如直接解压 Release zip 用）：没有采集脚本，
+            // 只能退回重读文件，并向用户说明为什么
+            _ = rebuildFromViewFile()
+            statusLabel?.stringValue = "这里没有采集脚本（App 不在仓库里）——只重读了现有数据；"
+                + "要新数据请在仓库里跑 ./mac-inventory"
+            return
+        }
+        isCollecting = true
+        statusLabel?.stringValue = "正在重新采集（brew · 端口 · 服务探活，约 30–60 秒）…"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/bin/bash")
+            p.arguments = [repo + "/mac-inventory", "--refresh-data"]
+            // Finder 启动的 App PATH 很短，brew/python3 都看不到 → 补齐
+            var env = ProcessInfo.processInfo.environment
+            let cur = env["PATH"] ?? "/usr/bin:/bin"
+            env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + cur
+            p.environment = env
+            p.standardOutput = FileHandle.nullDevice
+            p.standardError = FileHandle.nullDevice
+            do { try p.run(); p.waitUntilExit() } catch { }
+            let code = p.terminationStatus
+            DispatchQueue.main.async {
+                self.isCollecting = false
+                if code == 0, self.rebuildFromViewFile() {
+                    // 表格重建的选中事件会异步覆盖状态栏，反馈落在其后
+                    let fb = DispatchWorkItem {
+                        self.statusLabel?.stringValue = "已重新采集并刷新完毕——左上角「采集于」就是刚才那一刻"
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: fb)
+                } else {
+                    self.statusLabel?.stringValue = "采集失败（退出码 \(code)）——请在终端跑一次 ./mac-inventory 看输出"
+                }
+            }
         }
     }
 }

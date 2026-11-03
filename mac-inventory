@@ -13,6 +13,7 @@
 #   mac-inventory --render-only 用上次采集的 json 重渲染（改完 notes 用这个，几秒）
 #   mac-inventory --md          终端里看 Markdown 版
 #   mac-inventory --app-only    不采集，直接打开窗口
+#   mac-inventory --refresh-data 只采集+渲染，不开窗（给 App 内「刷新」按钮用的后端）
 set -u
 
 # 允许经 ~/.local/bin 等符号链接调用：解析真实路径
@@ -42,6 +43,7 @@ while [ $# -gt 0 ]; do
     --render-only) MODE=render ;;
     --md)          MODE=md ;;
     --app-only)    MODE=app ;;
+    --refresh-data) MODE=refresh ;;
     -h|--help)     sed -n '2,18p' "$0"; exit 0 ;;
     *)             printf '✗ 不认识的参数: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -63,6 +65,14 @@ case "$MODE" in
     step "用上次的快照重新渲染"; render ;;
   app)
     : ;;
+  refresh)
+    # App 内「刷新」按钮的后端：采完就退出，不开窗不重建
+    printf '{"stage":"collect"}\n'
+    python3 "$REPO/collect/collect.py" --out "$SNAP" || die "采集失败"
+    printf '{"stage":"render"}\n'
+    render >/dev/null
+    printf '{"stage":"done"}\n'
+    exit 0 ;;
   all)
     step "采集（只读，约 30 秒）"
     python3 "$REPO/collect/collect.py" --out "$SNAP" || die "采集失败"
