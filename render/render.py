@@ -477,10 +477,10 @@ def build_view(data, notes):
                  "rows": drift_rows})
 
     return {
-        "title": "%s · 这台 Mac 上有什么" % meta["hostname"].split(".")[0],
-        "subtitle": "%s · %s (%s) · %s · %s 核 / %s GB · 磁盘空闲 %s GB · 采集于 %s" % (
-            meta["user"], meta["os"], meta["os_build"], meta["cpu"], meta["cores"],
-            meta["ram_gb"], meta["disk_free_gb"], meta["collected_at"]),
+        "title": "这台 Mac 上有什么",
+        "subtitle": "%s · %s · %s (%s) · %s · %s 核 / %s GB · 磁盘空闲 %s GB · 采集于 %s" % (
+            meta["hostname"].split(".")[0], meta["user"], meta["os"], meta["os_build"],
+            meta["cpu"], meta["cores"], meta["ram_gb"], meta["disk_free_gb"], meta["collected_at"]),
         "footer": "%d 条说明 · 未登记 %d 条 · 采集只读" % (len(items), len(drift) + len(missing)),
         "dashboard": build_dashboard(data, notes, facts, missing, drift),
         "tabs": tabs,

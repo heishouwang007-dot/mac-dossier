@@ -66,7 +66,7 @@ final class TabPane: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         tableView.dataSource = self
         tableView.delegate = self
         tableView.usesAlternatingRowBackgroundColors = true
-        tableView.rowHeight = 22
+        tableView.rowHeight = 26
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.doubleAction = #selector(doubleClickRow(_:))
         filter("")
@@ -158,10 +158,11 @@ final class TabPane: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     }
 }
 
-/// 选中行自己画底色，别用系统蓝盖住行内文字色
+/// 选中行自己画底色——用系统强调色、足够不透明，和斑马纹拉开对比；
+/// 文字色不动（tag 色保留），只压浅一层底
 final class TableRowView: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {
-        NSColor.selectedControlColor.withAlphaComponent(0.35).setFill()
+        NSColor.controlAccentColor.withAlphaComponent(0.55).setFill()
         bounds.fill()
     }
 }
@@ -190,7 +191,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     var footerLabel: NSTextField!
     var segCtrl: NSSegmentedControl!
     var dashView: NSView!
-    var inDashboard = true   // 默认看板；「明细」才出现表格
+    var inDashboard = false  // 默认明细表格（用户对比后定稿）；看板是第二入口
 
     var dashNumBoxes: [NSBox] = []
     var dashServiceRows: NSView! = NSView()
@@ -236,7 +237,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         content.addSubview(sub)
         subLabel = sub
 
-        segCtrl = NSSegmentedControl(labels: ["看板", "明细"], trackingMode: .selectOne,
+        segCtrl = NSSegmentedControl(labels: ["明细", "看板"], trackingMode: .selectOne,
                                       target: self, action: #selector(modeChanged(_:)))
         segCtrl.selectedSegment = 0
         content.addSubview(segCtrl)
@@ -301,7 +302,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         detailView = NSTextView()
         detailView.isEditable = false
         detailView.isRichText = false
-        detailView.font = .monospacedSystemFont(ofSize: 10.5, weight: .regular)
+        detailView.font = .systemFont(ofSize: 11.5)
         detailView.backgroundColor = .textBackgroundColor
         detailView.autoresizingMask = [.width]
         let dscroll = NSScrollView()
@@ -329,6 +330,11 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         w.delegate = self
         w.makeKeyAndOrderFront(nil)
         selectPane(0)
+        // 开窗默认选中第一行，详情面板即刻有内容（对齐 Windows 行为）
+        if let g = panes.first?.tableView, g.numberOfRows > 0 {
+            g.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        }
+        selectionChanged()
         // 窗口尺寸变化时整套重算（NSTabView/表格的响应都依赖同一份 frame）
         NotificationCenter.default.addObserver(
             forName: NSWindow.didResizeNotification, object: w, queue: .main
@@ -488,7 +494,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     }
 
     @objc func modeChanged(_ sender: NSSegmentedControl) {
-        inDashboard = sender.selectedSegment == 0
+        inDashboard = sender.selectedSegment == 1
         layoutSubviews(of: window.contentView!)
         if !inDashboard { selectionChanged() }
     }
@@ -503,8 +509,8 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         let margin: CGFloat = 12
 
         // fullSizeContentView：顶部 ~28pt 被红绿灯/titlebar 占据，内容从 H-64 起
-        titleLabel.frame = NSRect(x: margin + 4, y: H - 66, width: 520, height: 22)
-        subLabel.frame = NSRect(x: margin + 5, y: H - 86, width: 700, height: 14)
+        titleLabel.frame = NSRect(x: 84, y: H - 66, width: 520, height: 22)
+        subLabel.frame = NSRect(x: 86, y: H - 86, width: 900, height: 14)
 
         btnReload.frame = NSRect(x: W - 84, y: H - 66, width: 70, height: 24)
         btnCopy.frame = NSRect(x: W - 160, y: H - 66, width: 70, height: 24)
