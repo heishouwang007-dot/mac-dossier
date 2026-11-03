@@ -5,10 +5,12 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BUILD="$HERE/build"
 APP="$BUILD/这台Mac上有什么.app"
-MACOS="$APP/Contents/MacOS"
+CONTENTS="$APP/Contents"
+MACOS="$CONTENTS/MacOS"
+RESOURCES="$CONTENTS/Resources"
 
 rm -rf "$APP"
-mkdir -p "$MACOS/Resources"
+mkdir -p "$MACOS" "$RESOURCES"
 swiftc -O -o "$MACOS/这台Mac上有什么" "$HERE/MacInventoryApp.swift"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -22,9 +24,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
 </dict>
 </plist>
 PLIST
+
+# 图标（app/AppIcon.icns 由 makeicon.swift 生成，缺了只是没图标，不挡构建）
+[ -f "$HERE/AppIcon.icns" ] && cp "$HERE/AppIcon.icns" "$RESOURCES/AppIcon.icns"
 
 codesign --force --sign - "$APP" >/dev/null 2>&1
 echo "✓ $APP"
