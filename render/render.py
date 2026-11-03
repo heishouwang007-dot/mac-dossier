@@ -248,6 +248,14 @@ def item_detail(it, facts, badges=None, broken=None):
     return "\n".join(L)
 
 
+def describe_command(name, facts, notes):
+    """命令的一句话说明：notes.cmd_notes(人写) 优先，brew 官方描述兜底。"""
+    hand = (notes.get("cmd_notes") or {}).get(name)
+    if hand:
+        return hand
+    return (facts.d.get("brew") or {}).get("descs", {}).get(name, "")
+
+
 def state_word(badges):
     """把一堆探针结果折叠成用户语言：● 正常 / ● 异常 / ◐ 部分未检查。
     探针的含义用户不需要知道；词和点的颜色已经说完了。"""
@@ -372,7 +380,8 @@ def build_view(data, notes):
     cmd_rows = []
     for c in data.get("commands") or []:
         cmd_rows.append({
-            "cells": [c["name"], c.get("version") or "-", short(c["path"], 4)],
+            "cells": [c["name"], c.get("version") or "-",
+                      describe_command(c["name"], facts, notes), short(c["path"], 4)],
             "tag": "" if c.get("ok") else "warn",
             "copy": c["path"],
             "detail": "%s\n%s\n%s" % (c["name"], c.get("version") or "", c["path"]),
@@ -380,7 +389,8 @@ def build_view(data, notes):
     tabs.append({"name": "命令行 (%d)" % len(cmd_rows),
                  "hint": "敲一个命令名，实际执行的是哪个文件（版本实时试跑出来的）· "
                          "橙色 = 探测异常 · 交互式工具不参与版本探测",
-                 "columns": [{"h": "命令", "w": 140}, {"h": "版本", "w": 380}, {"h": "路径", "w": 500}],
+                 "columns": [{"h": "命令", "w": 140}, {"h": "版本", "w": 330},
+                             {"h": "说明", "w": 380}, {"h": "路径", "w": 250}],
                  "rows": cmd_rows})
 
     # launchd
@@ -460,13 +470,15 @@ def build_view(data, notes):
     for f in (data.get("brew") or {}).get("formulae") or []:
         if not f.get("leaf"):
             continue
-        soft_rows.append({"cells": ["brew 自装", f["name"], f.get("version") or "", ""],
+        desc = (data.get("brew") or {}).get("descs", {}).get(f["name"], "")
+        soft_rows.append({"cells": ["brew 自装", f["name"], f.get("version") or "", desc],
                           "tag": "", "copy": f["name"],
-                          "detail": "brew formula\n卸载：brew uninstall %s" % f["name"]})
+                          "detail": "brew formula\n%s\n卸载:brew uninstall %s" % (desc, f["name"])})
     for c in (data.get("brew") or {}).get("casks") or []:
-        soft_rows.append({"cells": ["brew App", c["name"], c.get("version") or "", "→ /Applications"],
+        desc = (data.get("brew") or {}).get("descs", {}).get(c["name"], "→ /Applications")
+        soft_rows.append({"cells": ["brew App", c["name"], c.get("version") or "", desc],
                           "tag": "", "copy": c["name"],
-                          "detail": "brew cask\n卸载：brew uninstall --cask %s" % c["name"]})
+                          "detail": "brew cask\n%s\n卸载：brew uninstall --cask %s" % (desc, c["name"])})
     for a in data.get("apps") or []:
         if a["system"]:
             continue
@@ -480,7 +492,8 @@ def build_view(data, notes):
     for f in (data.get("brew") or {}).get("formulae") or []:
         if f.get("leaf"):
             continue
-        dep_rows.append({"cells": ["brew 依赖", f["name"], f.get("version") or "", ""],
+        dep_rows.append({"cells": ["brew 依赖", f["name"], f.get("version") or "",
+                                   (data.get("brew") or {}).get("descs", {}).get(f["name"], "")],
                          "tag": "dim", "copy": f["name"],
                          "detail": "%s 是上面某个包的依赖，不是单独装的\n卸载：brew uninstall %s"
                                    % (f["name"], f["name"])})

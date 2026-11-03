@@ -152,7 +152,22 @@ def brew_packages():
         casks.append({"name": name, "version": ver})
 
     taps = run_lines([BREW + "/bin/brew", "tap"], timeout=15)
-    return {"formulae": formulae, "casks": casks, "taps": taps}
+
+    # 官方一句话描述：一次 JSON 拿全部已装包的 desc（给界面「说明」列）
+    descs = {}
+    try:
+        rc, out = run([BREW + "/bin/brew", "info", "--json=v2", "--installed"], timeout=40)
+        if rc == 0:
+            info = json.loads(out)
+            for f in info.get("formulae") or []:
+                if f.get("name") and f.get("desc"):
+                    descs[f["name"]] = f["desc"]
+            for c in info.get("casks") or []:
+                if c.get("token") and (c.get("desc") or c.get("description")):
+                    descs[c["token"]] = c.get("desc") or c.get("description")
+    except Exception:
+        pass   # 描述拿不到不影响主流程,只是界面少一列说明
+    return {"formulae": formulae, "casks": casks, "taps": taps, "descs": descs}
 
 
 def read_plist(path):

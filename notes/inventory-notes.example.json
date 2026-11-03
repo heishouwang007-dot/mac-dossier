@@ -106,5 +106,8 @@
         "app:ExampleSuite"
       ]
     }
-  ]
+  ],
+  "cmd_notes": {
+    "myctl": "自己的运维小脚本（示例：怎么给命令加说明）"
+  }
 }
