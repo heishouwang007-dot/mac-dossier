@@ -39,7 +39,8 @@
       ],
       "note": "开关脚本的判定看 /health 响应体，不是 lsof；启动前清代理环境变量（urllib 会偷读系统代理）。这个仓库 27 GB，大头是 traces/（对话轨迹，gitignore 了）。",
       "installed_by": "me",
-      "group": "服务与自启"
+      "group": "服务与自启",
+      "startmode": "手动启动（开 AI接口开关 或双击 scripts 开关）"
     },
     {
       "id": "llm-8810",
@@ -69,7 +70,8 @@
         "/Users/heishouwang/tongji-llm-api/8810"
       ],
       "installed_by": "me",
-      "group": "服务与自启"
+      "group": "服务与自启",
+      "startmode": "手动启动（开 AI接口开关 或双击 scripts 开关）"
     },
     {
       "id": "clash-verge",
@@ -99,7 +101,8 @@
       "note": ".Merge.yaml 的 prepend-rules 会被静默忽略——规则必须走 Script.js；改完全局文件记得再备份 WebDAV。",
       "confirmed": false,
       "installed_by": "me",
-      "group": "服务与自启"
+      "group": "服务与自启",
+      "startmode": "手动启动（打开 Clash Verge 后生效）"
     },
     {
       "id": "vpnbar",
@@ -128,7 +131,8 @@
       "brew": [
         "openconnect"
       ],
-      "group": "服务与自启"
+      "group": "服务与自启",
+      "startmode": "开机自启（LaunchAgent local.tongji.vpnbar）"
     },
     {
       "id": "aiobar",
@@ -151,7 +155,8 @@
         "tongji-llm-api/app（源码）"
       ],
       "installed_by": "me",
-      "group": "服务与自启"
+      "group": "服务与自启",
+      "startmode": "开机自启（LaunchAgent local.tongji.aiobar）"
     },
     {
       "id": "tongji-services",

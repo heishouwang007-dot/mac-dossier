@@ -284,10 +284,10 @@ def build_dashboard(data, notes, facts, missing, drift):
 
     services = []
     for it in notes["items"]:
-        # 看板左卡只回答一件事：常驻服务现在健康吗。
-        # 以前把所有带探针的条目（Xmind、LaunchAgents 说明……）都塞进来，
-        # 用户看不懂这堆混排的东西 —— 严格限定在「服务与自启」组。
-        if it.get("group") != "服务与自启":
+        # 看板右卡只回答一件事：这个服务现在跑着吗、健康吗。
+        # 开机自启的罗列在明细「开机自启」标签里，这里不重复整段
+        # launchd 清单，只在每个服务下面括号标注它是自启还是手动。
+        if it.get("group") != "服务与自启" or it.get("id") == "launchd-local":
             continue
         probes = [p for p in (it.get("status") or []) if p.startswith(("port:", "probe:", "launchd:", "app:"))]
         if not probes:
@@ -298,6 +298,7 @@ def build_dashboard(data, notes, facts, missing, drift):
             "title": it.get("title", ""),
             "state": tag,
             "line": word.replace("\u25cf ", "").replace("\u25d0 ", "").replace("\u2014 ", ""),
+            "note": it.get("startmode") or "",
             "where": it.get("where") or "",
         })
 

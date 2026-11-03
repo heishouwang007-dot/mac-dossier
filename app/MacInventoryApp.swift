@@ -20,9 +20,10 @@ struct ViewColumn: Codable { var h: String; var w: Int? }
 struct ViewRow: Codable { var cells: [String]; var tag: String?; var copy: String?; var detail: String? }
 struct ViewTab: Codable { var name: String; var hint: String?; var columns: [ViewColumn]; var rows: [ViewRow] }
 struct DashNum: Codable { var n: String; var label: String }
-struct DashService: Codable { var title: String; var state: String; var line: String; var where_: String?
+struct DashService: Codable { var title: String; var state: String; var line: String; var note: String?; var where_: String?
 
-    enum CodingKeys: String, CodingKey { case title, state, line, where_ = "where" }
+    // ⚠ 有显式 CodingKeys 时新字段必须同步加进枚举，否则静默解码成 nil
+    enum CodingKeys: String, CodingKey { case title, state, line, note, where_ = "where" }
     var wherePath: String { where_ ?? "" }
 }
 struct DashCap: Codable { var name: String; var ok: Bool }
@@ -443,7 +444,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         }
 
         // 左卡：运行的应用（正在开着的 GUI App）
-        let (appBox, appTitle) = makeCard("运行的应用 —— 现在开着的")
+        let (appBox, appTitle) = makeCard("现在运行的应用")
         self.appCardBox = appBox; self.appCardTitle = appTitle
         for name in model.dashboard?.apps ?? [] {
             let l = NSTextField(labelWithString: name)
@@ -457,7 +458,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         appBox.addSubview(dashAppRows)
 
         // 右卡：运行的服务（点 + 标题 + 状态词）
-        let (svcBox, svcTitle) = makeCard("运行的服务 —— 常驻通道")
+        let (svcBox, svcTitle) = makeCard("现在运行的服务")
         self.svcCardBox = svcBox; self.svcCardTitle = svcTitle
         for sv in model.dashboard?.services ?? [] {
             let dot = NSButton(title: "●", target: nil, action: nil)
@@ -475,6 +476,15 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
             dashServiceRows.addSubview(dot)
             dashServiceRows.addSubview(title)
             dashServiceRows.addSubview(line)
+            if let note = sv.note, !note.isEmpty {
+                let n = NSTextField(labelWithString: note)
+                n.font = .systemFont(ofSize: 9.5)
+                n.textColor = .tertiaryLabelColor
+                n.lineBreakMode = .byTruncatingMiddle
+                n.cell?.truncatesLastVisibleLine = true
+                n.cell?.wraps = false
+                dashServiceRows.addSubview(n)   // kind 3：括号注，排在标题下方
+            }
         }
         svcBox.addSubview(dashServiceRows)
 
@@ -553,16 +563,27 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         svcCardBox?.frame = NSRect(x: svcX, y: bandTop, width: svcW, height: mainH)
         svcCardTitle?.frame = NSRect(x: svcX + 4, y: bandTop + mainH + 2, width: svcW, height: titleH)
         let nSv = max(1, CGFloat(model.dashboard?.services.count ?? 1))
-        let rGap = min(34, max(20, (mainH - 10) / nSv))
-        for (i, v) in dashServiceRows.subviews.enumerated() {
-            let row = i / 3, kind = i % 3
+        let rGap = min(46, max(30, (mainH - 10) / nSv))
+        // 子视图添加顺序 = dot,title,line[,note]，note 存在时该行占两行高
+        var i = 0, row = 0
+        while i < dashServiceRows.subviews.count {
+            let subs = dashServiceRows.subviews
             let y = mainH - 10 - CGFloat(row + 1) * rGap
             let w0 = svcW - 24
-            switch kind {
-            case 0: v.frame = NSRect(x: 10, y: y, width: 18, height: 16)
-            case 1: v.frame = NSRect(x: 28, y: y, width: w0 * 0.50, height: 16)
-            default: v.frame = NSRect(x: 28 + w0 * 0.50 + 6, y: y, width: w0 * 0.34, height: 16)
+            // dot/title/line 三件套
+            if i + 2 < subs.count {
+                subs[i].frame = NSRect(x: 10, y: y, width: 18, height: 16)
+                subs[i+1].frame = NSRect(x: 28, y: y, width: w0 * 0.50, height: 16)
+                subs[i+2].frame = NSRect(x: 28 + w0 * 0.50 + 6, y: y, width: w0 * 0.34, height: 16)
             }
+            i += 3
+            // 可选的括号注（标题下方）
+            if i < subs.count, let tf = subs[i] as? NSTextField,
+               tf.font?.pointSize == 9.5 {
+                subs[i].frame = NSRect(x: 28, y: y - 13, width: w0 * 0.72, height: 13)
+                i += 1
+            }
+            row += 1
         }
         dashServiceRows.frame = NSRect(x: 0, y: 0, width: svcW - 8, height: mainH)
 
