@@ -528,7 +528,7 @@ def build_view(data, notes):
     return {
         "title": "Mac 档案",
         # 副标题只留五个有人看的字段，统一「值 · 值」节奏；磁盘过 1 TB 就用 TB
-        "subtitle": "%s · %s 核 / %s GB · %s · 磁盘空闲 %s · 更新于 %s" % (
+        "subtitle": "%s · %s 核 / %s GB · %s · 磁盘空闲 %s · 采集于 %s" % (
             meta["cpu"], meta["cores"], int(meta["ram_gb"]), meta["os"],
             ("%.2f TB" % (meta["disk_free_gb"] / 1024.0)) if meta["disk_free_gb"] >= 1024
                 else "%s GB" % meta["disk_free_gb"],
