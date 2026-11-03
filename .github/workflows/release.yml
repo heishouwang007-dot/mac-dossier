@@ -1,0 +1,19 @@
+# 发布产物：tag 推上去后在 macOS runner 编 .app 塞进 GitHub Release
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build-app:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build viewer app
+        run: |
+          app/build.sh
+          cd app/build && zip -qry "MacDossier.app.zip" "Mac档案.app"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/MacDossier.app.zip

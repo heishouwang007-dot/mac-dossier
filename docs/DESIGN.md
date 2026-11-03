@@ -2,7 +2,7 @@
 
 同一份设计跑在两个平台，schema 完全一致，只是采集器和查看器的技术栈不同：
 
-| | 远程桌面（tongji-vdi-ssh） | 本机 Mac（本仓库） |
+| | Sibling variant for a remote Windows desktop (in-house, private) | This Mac (this repo) |
 |---|---|---|
 | 采集器 | `inventory-collect.ps1`（注册表/计划任务/服务/PATH/端口） | `collect/collect.py`（brew/LaunchAgents/lsof/plist） |
 | 说明层 | `remote/inventory-notes.json` | `notes/inventory-notes.json` |

@@ -1,4 +1,11 @@
-// MacInventoryApp.swift — 「这台 Mac 上有什么」原生窗口（纯 AppKit）
+// MacInventoryApp.swift — Mac 档案 viewer (pure AppKit, no Xcode project).
+//
+// Build: swiftc -O (see build.sh). Data-driven: everything displayed comes
+// from inventory-view.json produced by render/render.py — this file only
+// draws. Inline comments below record real pitfalls hit during development
+// (NSBox titles not rendering, NSTabView item sizing, DPI, BOM/encoding…);
+// they are kept in Chinese as the original engineering log. Design notes:
+// docs/DESIGN.md.
 //
 // 为什么是 AppKit 不是 SwiftUI：这台机器只装了 CommandLineTools（没有完整 Xcode），
 // CLT 里没有 SwiftUI 宏插件（SwiftUIMacros），@State 编不了 —— journal 2026-10-24

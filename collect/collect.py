@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""collect.py -- 采集「这台 Mac 上装了什么、装在哪」，只读。
+"""Read-only fact collector for Mac Dossier (Mac 档案).
+
+Gathers what this machine has and where: Homebrew packages, /Applications
+bundles, LaunchAgents, listening ports, PATH-resolved commands, directory
+sizes, local-service health probes, and a Brewfile snapshot. Never mutates
+anything; every external command is time-boxed.
+
+Output: UTF-8 JSON consumed by render/render.py.
 
 设计约束（照抄 Windows 那套的结论）：
   * 只采集事实，不写说明。「为什么装、怎么跑」猜不出来，那部分在 notes/ 里人工写。

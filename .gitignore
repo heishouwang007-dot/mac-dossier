@@ -3,3 +3,6 @@ app/build/
 .cache/
 .DS_Store
 *.log
+
+# 个人说明层不入库（发布版只带 example；每人一份，见 notes/inventory-notes.example.json）
+notes/inventory-notes.json

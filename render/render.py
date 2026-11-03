@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""render.py -- 把 inventory.json（事实）+ notes/inventory-notes.json（说明）
-合并成 inventory-view.json（界面数据）和 Markdown。
+"""Merge facts + hand-written notes into a view JSON (and markdown).
 
+The viewer (`app/`) is a dumb renderer of inventory-view.json; all semantic
+work — status words, badges, tab taxonomy, drift detection — happens here so
+that content changes never touch UI code.
 和 Windows 那套用**同一个 view schema**：
   {title, subtitle, footer,
    tabs: [{name, hint, columns: [{h, w}], rows: [{cells, tag, copy, detail}]}]}
@@ -436,7 +438,7 @@ def build_view(data, notes):
                                             "（3 秒预算内没走完，偏小）" if d.get("partial") else "", kids),
         })
     tabs.append({"name": "目录占用 (%d)" % len(dir_rows),
-                 "hint": "我建的东西放在哪、各占多少磁盘（tongji-llm-api 27 GB 这类）· "
+                 "hint": "我建的东西放在哪、各占多少磁盘（比如你最大的那个项目仓库）· "
                          "橙色 = 大小统计不全（3 秒预算没走完，实际只会更大）",
                  "columns": [{"h": "大小", "w": 100}, {"h": "路径", "w": 460},
                              {"h": "里面有什么", "w": 480}],
