@@ -283,6 +283,11 @@ def build_dashboard(data, notes, facts, missing, drift):
 
     services = []
     for it in notes["items"]:
+        # 看板左卡只回答一件事：常驻服务现在健康吗。
+        # 以前把所有带探针的条目（Xmind、LaunchAgents 说明……）都塞进来，
+        # 用户看不懂这堆混排的东西 —— 严格限定在「服务与自启」组。
+        if it.get("group") != "服务与自启":
+            continue
         probes = [p for p in (it.get("status") or []) if p.startswith(("port:", "probe:", "launchd:", "app:"))]
         if not probes:
             continue
@@ -426,8 +431,9 @@ def build_view(data, notes):
             "detail": "%s\n%s%s\n里面：%s" % (d["path"], mb(d.get("mb")),
                                             "（3 秒预算内没走完，偏小）" if d.get("partial") else "", kids),
         })
-    tabs.append({"name": "位置 (%d)" % len(dir_rows),
-                 "hint": "我的仓库和工具目录 · 橙色 = 大小统计不全",
+    tabs.append({"name": "目录占用 (%d)" % len(dir_rows),
+                 "hint": "我建的东西放在哪、各占多少磁盘（tongji-llm-api 27 GB 这类）· "
+                         "橙色 = 大小统计不全（3 秒预算没走完，实际只会更大）",
                  "columns": [{"h": "大小", "w": 100}, {"h": "路径", "w": 460},
                              {"h": "里面有什么", "w": 480}],
                  "rows": dir_rows})
@@ -526,11 +532,11 @@ def build_view(data, notes):
         # 叙事顺序：是什么 → 装了什么 → 能用哪些命令 → 正在跑什么 → 什么会自启
         #           → 机器底子 → 东西在哪 → 要盯着的（凭据与漂移）
         "tabs": [t for k in ("全部", "安装的软件", "命令行", "运行中",
-                             "开机自启", "系统能力", "位置", "私有凭据")
+                             "开机自启", "系统能力", "目录占用", "私有凭据")
                  for t in tabs if t["name"].startswith(k)]
                 + [t for t in tabs if not t["name"].startswith(
                     ("全部", "安装的软件", "命令行", "运行中", "开机自启",
-                     "系统能力", "位置", "私有凭据"))],
+                     "系统能力", "目录占用", "私有凭据"))],
     }
 
 
