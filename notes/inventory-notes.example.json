@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "host": "example",
+  "updated_at": "2026-11-03",
+  "about": "示例说明层：复制成 notes/inventory-notes.json 后照你自己机器改。installed_by: me=我装的 / system=系统自带 / vendor=第三方。group 决定明细页分组；status 里的探针(port:/launchd:/dir:/cmd:/brew:/app:/probe:)驱动状态与看板。",
+  "items": [
+    {
+      "id": "api-gateway",
+      "kind": "service",
+      "title": "本地 API 网关（示例）",
+      "installed_by": "me",
+      "group": "服务与自启",
+      "where": "~/projects/my-gateway",
+      "what": "把上游 LLM API 包成 OpenAI 协议的本地反代。",
+      "why": "统一端点、记日志、换个上游不用改客户端。",
+      "run": [
+        "make up"
+      ],
+      "stop": [
+        "make down"
+      ],
+      "config": [
+        "~/projects/my-gateway/config.json"
+      ],
+      "status": [
+        "port:11434",
+        "dir:~/projects/my-gateway"
+      ],
+      "startmode": "手动启动（make up）"
+    },
+    {
+      "id": "local-proxy",
+      "kind": "service",
+      "title": "本地代理（示例）",
+      "installed_by": "me",
+      "group": "服务与自启",
+      "what": "brew cask 装的代理客户端，混合端口 127.0.0.1:7897。",
+      "run": [
+        "open -a 'LocalProxy'"
+      ],
+      "stop": [
+        "osascript -e 'quit app \"LocalProxy\"'"
+      ],
+      "status": [
+        "port:7897",
+        "brew:localproxy"
+      ],
+      "note": "CLI 工具不读系统代理，记得显式给 http_proxy。",
+      "startmode": "手动启动（打开 App 后生效）"
+    },
+    {
+      "id": "menubar-tool",
+      "kind": "service",
+      "title": "菜单栏小工具（示例）",
+      "installed_by": "me",
+      "group": "服务与自启",
+      "what": "自写的 SwiftUI/TJ 桥接菜单栏 App，LaunchAgent 自启。",
+      "status": [
+        "launchd:local.menubar.tool"
+      ],
+      "startmode": "开机自启（LaunchAgent local.menubar.tool）"
+    },
+    {
+      "id": "dev-runtime",
+      "kind": "runtime",
+      "title": "开发运行时（示例）",
+      "installed_by": "me",
+      "group": "工具与运行时",
+      "what": "brew 的 python/node/rust 全家桶。",
+      "run": [
+        "python3 -V",
+        "node -v"
+      ],
+      "status": [
+        "brew:python@3.14",
+        "brew:node",
+        "cmd:cargo"
+      ]
+    },
+    {
+      "id": "dot-dirs",
+      "kind": "dir",
+      "title": "家目录下的点目录（示例）",
+      "installed_by": "me",
+      "group": "项目与配置",
+      "where": "~/.config",
+      "covers": [
+        "~/.ssh",
+        "~/.local/bin"
+      ],
+      "what": "各 CLI 自己的状态与缓存目录。",
+      "why": "别手改；想知道某个 CLI 的配置在哪就进对应目录。",
+      "status": [
+        "dir:~/.ssh"
+      ]
+    },
+    {
+      "id": "licenced-app",
+      "kind": "app",
+      "title": "授权受限的软件（示例）",
+      "installed_by": "vendor",
+      "group": "学校授权",
+      "what": "公司/学校发放的授权软件，不在 brew 里。",
+      "why": "用包管理器升级会撕掉激活 —— 保持 unmanaged。",
+      "status": [
+        "app:ExampleSuite"
+      ]
+    }
+  ]
+}
