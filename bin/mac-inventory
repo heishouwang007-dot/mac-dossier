@@ -23,7 +23,7 @@ CACHE="$HOME/.cache/mac-inventory"
 SNAP="$CACHE/inventory.json"
 VIEW="$CACHE/inventory-view.json"
 MD="$CACHE/inventory.md"
-APP="$REPO/app/build/这台Mac上有什么.app"
+APP="$REPO/app/build/Mac档案.app"
 
 say()  { printf '%s\n' "$*"; }
 die()  { printf '✗ %s\n' "$*" >&2; exit 1; }

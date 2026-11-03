@@ -259,7 +259,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         titleLabel = title
 
         let sub = NSTextField(labelWithString: model.subtitle)
-        sub.font = .systemFont(ofSize: 9.5)
+        sub.font = .systemFont(ofSize: 10.5)
         sub.textColor = .secondaryLabelColor
         content.addSubview(sub)
         subLabel = sub

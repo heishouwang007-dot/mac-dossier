@@ -480,10 +480,13 @@ def build_view(data, notes):
                  "rows": drift_rows})
 
     return {
-        "title": "这台 Mac 上有什么",
-        "subtitle": "%s · %s · %s (%s) · %s · %s 核 / %s GB · 磁盘空闲 %s GB · 采集于 %s" % (
-            meta["hostname"].split(".")[0], meta["user"], meta["os"], meta["os_build"],
-            meta["cpu"], meta["cores"], meta["ram_gb"], meta["disk_free_gb"], meta["collected_at"]),
+        "title": "Mac 档案",
+        # 副标题只留五个有人看的字段，统一「值 · 值」节奏；磁盘过 1 TB 就用 TB
+        "subtitle": "%s · %s 核 / %s GB · %s · 磁盘空闲 %s · 更新于 %s" % (
+            meta["cpu"], meta["cores"], int(meta["ram_gb"]), meta["os"],
+            ("%.2f TB" % (meta["disk_free_gb"] / 1024.0)) if meta["disk_free_gb"] >= 1024
+                else "%s GB" % meta["disk_free_gb"],
+            meta["collected_at"]),
         "footer": "%d 条说明 · 未登记 %d 条 · 采集只读" % (len(items), len(drift) + len(missing)),
         "dashboard": build_dashboard(data, notes, facts, missing, drift),
         "tabs": tabs,

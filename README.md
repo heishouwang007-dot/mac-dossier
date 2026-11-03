@@ -1,6 +1,6 @@
-# mac-inventory — 这台 Mac 上有什么
+# mac-inventory — Mac 档案
 
-**一句话**：把「这台机器装了什么、装在哪、为什么装、怎么起」收成一个原生窗口，
+**一句话**：《Mac 档案》——把「这台机器装了什么、装在哪、为什么装、怎么起」收成一个原生窗口，
 和 [`tongji-vdi-ssh` 的 `vdi-inventory`](../tongji-vdi-ssh)（远程桌面版）是同一套设计的两个实现。
 
 ```
