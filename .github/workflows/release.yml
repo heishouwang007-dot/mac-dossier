@@ -14,6 +14,6 @@ jobs:
         run: |
           app/build.sh
           cd app/build && zip -qry "MacDossier.app.zip" "Mac档案.app"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: app/build/MacDossier.app.zip
