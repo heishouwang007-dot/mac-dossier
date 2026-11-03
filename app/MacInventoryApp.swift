@@ -26,7 +26,7 @@ struct DashService: Codable { var title: String; var state: String; var line: St
     var wherePath: String { where_ ?? "" }
 }
 struct DashCap: Codable { var name: String; var ok: Bool }
-struct DashboardC: Codable { var numbers: [DashNum]; var services: [DashService]; var caps: [DashCap]; var warns: [String] }
+struct DashboardC: Codable { var numbers: [DashNum]; var services: [DashService]; var caps: [DashCap]; var warns: [String]; var apps: [String]? }
 struct ViewModel: Codable { var title: String; var subtitle: String; var footer: String; var tabs: [ViewTab]; var dashboard: DashboardC? }
 
 func tagColor(_ tag: String?) -> NSColor {
@@ -213,6 +213,9 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     var capCardTitle: NSTextField?
     var warnCardBox: NSBox?
     var warnCardTitle: NSTextField?
+    var appCardBox: NSBox?
+    var appCardTitle: NSTextField?
+    var dashAppRows: NSView! = NSView()
 
     init(model: ViewModel, viewPath: String) {
         self.model = model
@@ -439,8 +442,22 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
             dashNumBoxes.append(box)
         }
 
-        // 左卡：常驻服务（点 + 标题 + 状态词）
-        let (svcBox, svcTitle) = makeCard("常驻服务 —— 现在在跑的")
+        // 左卡：运行的应用（正在开着的 GUI App）
+        let (appBox, appTitle) = makeCard("运行的应用 —— 现在开着的")
+        self.appCardBox = appBox; self.appCardTitle = appTitle
+        for name in model.dashboard?.apps ?? [] {
+            let l = NSTextField(labelWithString: name)
+            l.font = .systemFont(ofSize: 11)
+            l.textColor = .labelColor
+            l.lineBreakMode = .byTruncatingMiddle
+            l.cell?.truncatesLastVisibleLine = true
+            l.cell?.wraps = false
+            dashAppRows.addSubview(l)
+        }
+        appBox.addSubview(dashAppRows)
+
+        // 右卡：运行的服务（点 + 标题 + 状态词）
+        let (svcBox, svcTitle) = makeCard("运行的服务 —— 常驻通道")
         self.svcCardBox = svcBox; self.svcCardTitle = svcTitle
         for sv in model.dashboard?.services ?? [] {
             let dot = NSButton(title: "●", target: nil, action: nil)
@@ -466,7 +483,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         self.capCardBox = capBox; self.capCardTitle = capTitle
         for c in model.dashboard?.caps ?? [] {
             let l = NSTextField(labelWithString: (c.ok ? "✓ " : "✗ ") + c.name)
-            l.font = .systemFont(ofSize: 10.5)
+            l.font = .systemFont(ofSize: 10)
             if !c.ok { l.textColor = .systemRed }
             dashCapView.addSubview(l)
         }
@@ -504,58 +521,78 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         }
 
         let warnCount = CGFloat(model.dashboard?.warns.count ?? 0)
+        let bottomH: CGFloat = 84                     // 底部窄带：机器底子+要注意
         let boxesBottom: CGFloat = 12
-        let boxesTopY = dashView.bounds.height - ch - 24   // 数字条下 4pt
-        let boxesH = boxesTopY - boxesBottom
-        let svcW = (W - 44) * 0.60
-        let rightX = 16 + svcW + 12
-        let rightW = W - rightX - 16
+        let bandTop = boxesBottom + bottomH + 10
+        let mainTop = dashView.bounds.height - ch - 26
+        let mainH = mainTop - bandTop - 10
         let titleH: CGFloat = 18
 
-        // 左：常驻服务
-        svcCardBox?.frame = NSRect(x: 16, y: boxesBottom, width: svcW, height: boxesH)
-        svcCardTitle?.frame = NSRect(x: 20, y: boxesBottom + boxesH + 2, width: svcW - 8, height: titleH)
+        // 左：运行的应用
+        let appW = (W - 44) * 0.55
+        appCardBox?.frame = NSRect(x: 16, y: bandTop, width: appW, height: mainH)
+        appCardTitle?.frame = NSRect(x: 20, y: bandTop + mainH + 2, width: appW - 8, height: titleH)
+        let appNames = model.dashboard?.apps ?? []
+        let nApp = max(1, CGFloat(appNames.count + 1))
+        // 应用多就两列；每列行距吃满卡高
+        let twoCol = appNames.count > 14
+        let perCol = twoCol ? ceil(nApp / 2) : nApp
+        let rowGap = min(30, max(14, (mainH - 10) / max(perCol, 1)))
+        let colW = twoCol ? (appW - 24) / 2 : (appW - 24)
+        for (i, v) in dashAppRows.subviews.enumerated() {
+            let col: CGFloat = twoCol ? CGFloat(i / Int(perCol)) : 0
+            let row: CGFloat = twoCol ? CGFloat(i % Int(perCol)) : CGFloat(i)
+            v.frame = NSRect(x: 10 + col * colW, y: mainH - 10 - (row + 1) * rowGap,
+                             width: colW - 8, height: 16)
+        }
+        dashAppRows.frame = NSRect(x: 0, y: 0, width: appW - 8, height: mainH)
+
+        // 右：运行的服务（点+标题+状态词）
+        let svcX = 16 + appW + 12
+        let svcW = W - svcX - 16
+        svcCardBox?.frame = NSRect(x: svcX, y: bandTop, width: svcW, height: mainH)
+        svcCardTitle?.frame = NSRect(x: svcX + 4, y: bandTop + mainH + 2, width: svcW, height: titleH)
         let nSv = max(1, CGFloat(model.dashboard?.services.count ?? 1))
-        let rowGap = min(34, max(20, (boxesH - 16) / nSv))
+        let rGap = min(34, max(20, (mainH - 10) / nSv))
         for (i, v) in dashServiceRows.subviews.enumerated() {
             let row = i / 3, kind = i % 3
-            let y = boxesH - 12 - CGFloat(row + 1) * rowGap
+            let y = mainH - 10 - CGFloat(row + 1) * rGap
             let w0 = svcW - 24
             switch kind {
             case 0: v.frame = NSRect(x: 10, y: y, width: 18, height: 16)
-            case 1: v.frame = NSRect(x: 28, y: y, width: w0 * 0.46, height: 16)
-            default: v.frame = NSRect(x: 28 + w0 * 0.46 + 6, y: y, width: w0 * 0.40, height: 16)
+            case 1: v.frame = NSRect(x: 28, y: y, width: w0 * 0.50, height: 16)
+            default: v.frame = NSRect(x: 28 + w0 * 0.50 + 6, y: y, width: w0 * 0.34, height: 16)
             }
         }
-        dashServiceRows.frame = NSRect(x: 0, y: 0, width: svcW - 8, height: boxesH)
+        dashServiceRows.frame = NSRect(x: 0, y: 0, width: svcW - 8, height: mainH)
 
-        // 右列：机器底子（上）+ 要注意（下）
-        let warnH = warnCount == 0 ? 0 : min(150, 30 + warnCount * 26)
-        let capsH = boxesH - warnH - (warnCount == 0 ? 0 : 10) - titleH
-        capCardBox?.frame = NSRect(x: rightX, y: boxesBottom + warnH + (warnCount == 0 ? 0 : 10),
-                                   width: rightW, height: capsH)
-        capCardTitle?.frame = NSRect(x: rightX + 4, y: boxesBottom + warnH + (warnCount == 0 ? 0 : 10) + capsH + 2,
-                                     width: rightW, height: titleH)
-        if warnCount > 0 {
-            warnCardBox?.frame = NSRect(x: rightX, y: boxesBottom, width: rightW, height: warnH - titleH)
-            warnCardTitle?.frame = NSRect(x: rightX + 4, y: boxesBottom + warnH - titleH + 2,
-                                          width: rightW, height: titleH)
-            for (i, v) in dashWarnView.subviews.enumerated() {
-                v.frame = NSRect(x: 10, y: (warnH - titleH) - 12 - CGFloat(i + 1) * 24,
-                                 width: rightW - 26, height: 16)
-            }
-            dashWarnView.frame = NSRect(x: 0, y: 0, width: rightW - 8, height: warnH - titleH)
-        }
-
-        let capN = max(1, CGFloat(model.dashboard?.caps.count ?? 1))
-        let capGap = min(30, max(16, (capsH - 12) / capN))
+        // 底部窄带左：机器底子（小字，两列）
+        let capsW = (W - 44) * 0.60
+        capCardBox?.frame = NSRect(x: 16, y: boxesBottom, width: capsW, height: bottomH)
+        capCardTitle?.frame = NSRect(x: 20, y: boxesBottom + bottomH + 2, width: capsW, height: titleH)
+        let capsList = model.dashboard?.caps ?? []
+        let capColN = 3
+        let capRows = max(1, Int(ceil(Double(capsList.count) / Double(capColN))))
+        let cGap = min(26, max(16, (bottomH - 6) / CGFloat(capRows)))
+        let cColW = (capsW - 24) / CGFloat(capColN)
         for (i, v) in dashCapView.subviews.enumerated() {
-            v.frame = NSRect(x: 10, y: capsH - 12 - CGFloat(i + 1) * capGap,
-                             width: rightW - 26, height: 16)
+            let col = CGFloat(i % capColN), row = CGFloat(i / capColN)
+            v.frame = NSRect(x: 10 + col * cColW, y: bottomH - 8 - (row + 1) * cGap,
+                             width: cColW - 6, height: 14)
         }
-        dashCapView.frame = NSRect(x: 0, y: 0, width: rightW - 8, height: capsH)
-    }
+        dashCapView.frame = NSRect(x: 0, y: 0, width: capsW - 8, height: bottomH)
 
+        // 底部窄带右：要注意
+        let warnX = 16 + capsW + 12
+        let warnW = W - warnX - 16
+        warnCardBox?.frame = NSRect(x: warnX, y: boxesBottom, width: warnW, height: bottomH)
+        warnCardTitle?.frame = NSRect(x: warnX + 4, y: boxesBottom + bottomH + 2, width: warnW, height: titleH)
+        for (i, v) in dashWarnView.subviews.enumerated() {
+            v.frame = NSRect(x: 10, y: bottomH - 8 - CGFloat(i + 1) * 22,
+                             width: warnW - 26, height: 16)
+        }
+        dashWarnView.frame = NSRect(x: 0, y: 0, width: warnW - 8, height: bottomH)
+    }
 
     @objc func modeChanged(_ sender: NSSegmentedControl) {
         inDashboard = sender.selectedSegment == 1
@@ -667,6 +704,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         panes = []
         dashNumBoxes.removeAll()
         dashServiceRows = NSView()
+        dashAppRows = NSView()
         dashCapView = NSView()
         dashWarnView = NSView()
         buildUI()

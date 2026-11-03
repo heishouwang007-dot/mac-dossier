@@ -358,6 +358,20 @@ def http_checks():
     return out
 
 
+def running_apps():
+    """现在真的开着的应用（看板用）。System Events 只列非 background-only 的
+    应用进程，再滤掉窗口服务级的系统件。"""
+    rc, out = run(["osascript", "-e",
+                   "tell application \"System Events\" to get name of every "
+                   "application process whose background only is false"],
+                  timeout=10)
+    names = [x.strip() for x in out.split(",") if x.strip()] if rc == 0 else []
+    sys_noise = {"Dock", "Window Server", "SystemUIServer", "Spotlight",
+                 "ControlCenter", "Siri", "universalAccessAuthWarn",
+                 "universalaccessd", "TextInputMenuAgent", "CoreLocationAgent"}
+    return sorted({n for n in names if n not in sys_noise and n[0:1].isprintable()})
+
+
 def package_managers():
     res = {}
     rc, out = run(["pipx", "list", "--short"], timeout=20)
@@ -473,6 +487,7 @@ def main(argv=None):
         "packages": package_managers(),
         "brewfile": brewfile(),
         "http": http_checks(),
+        "running_apps": running_apps(),
         "dirs": dirs(),
         "ssh": ssh_surface(),
         "env": shell_env(),

@@ -20,7 +20,8 @@ LIST_FIELDS = {
     "caps", "apps", "launchd", "listeners", "path_entries", "commands", "dirs",
     "formulae", "casks", "taps", "keys", "hosts", "env", "items", "children",
     "bins", "run", "stop", "config", "docs", "status", "programs", "commands_note",
-    "tasks", "covers", "pipx", "npm", "uv_python", "mise", "http", "lines", "keys",
+    "tasks", "covers", "pipx", "npm", "uv_python", "mise", "http", "lines", "keys", "running_apps",
+"numbers", "services", "caps", "warns",
 }
 
 
@@ -315,7 +316,8 @@ def build_dashboard(data, notes, facts, missing, drift):
         if x["backup"] and x["loaded"]:
             warns.append("备份文件 %s 处于加载态" % x["label"])
 
-    return {"numbers": numbers, "services": services, "caps": caps, "warns": warns}
+    return {"numbers": numbers, "services": services, "caps": caps, "warns": warns,
+            "apps": d.get("running_apps") or []}
 
 
 def build_view(data, notes):
