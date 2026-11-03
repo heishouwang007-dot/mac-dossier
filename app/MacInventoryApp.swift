@@ -183,7 +183,7 @@ enum ColumnID {
 // MARK: - 窗口组装（全部手工布局，Auto Layout 管缩放）
 
 final class InventoryWindow: NSObject, NSWindowDelegate {
-    let model: ViewModel
+    var model: ViewModel
     let viewPath: String
     var window: NSWindow!
     var panes: [TabPane] = []
@@ -239,21 +239,31 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     }
 
     private func buildUI() {
-        let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1320, height: 820),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered, defer: false)
-        // 大标题在窗口内容区里画了，titlebar 只留红绿灯，免得双标题
-        w.title = ""
-        w.titleVisibility = .hidden
-        w.titlebarAppearsTransparent = true
-        w.standardWindowButton(.documentIconButton)?.isHidden = true
-        w.isMovableByWindowBackground = false
-        w.backgroundColor = .windowBackgroundColor
-        w.delegate = self
-        window = w
+        // 刷新（reload）会带着新数据重进这里：只能复用现有窗口，
+        // 再建一个 NSWindow 会把内容偷走、留个空黑窗在最前面（实测黑屏就是这么来的）
+        let w: NSWindow
+        if let existing = window {
+            w = existing
+        } else {
+            w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 1320, height: 820),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                backing: .buffered, defer: false)
+            // 大标题在窗口内容区里画了，titlebar 只留红绿灯，免得双标题
+            w.title = ""
+            w.titleVisibility = .hidden
+            w.titlebarAppearsTransparent = true
+            w.standardWindowButton(.documentIconButton)?.isHidden = true
+            w.isMovableByWindowBackground = false
+            w.backgroundColor = .windowBackgroundColor
+            w.delegate = self
+            window = w
+        }
 
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: 1320, height: 820))
+        // 旧内容整体丢弃（刷新=重建，不做局部 diff）
+        let oldFrame = window?.contentView?.frame ?? NSRect(x: 0, y: 0, width: 1320, height: 820)
+        let content = NSView(frame: oldFrame)
+        w.contentView = content
         w.contentView = content
 
         // ── 顶栏：标题 / 副标题 / 搜索 / 复制 / 刷新 ──
@@ -362,7 +372,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         layoutSubviews(of: content)
 
         w.delegate = self
-        w.makeKeyAndOrderFront(nil)
+        if w.isVisible == false { w.makeKeyAndOrderFront(nil) }
         selectPane(0)
         // 开窗默认选中第一行 + 把键盘焦点交给表格：
         // 不做 makeFirstResponder 的话 ↑↓ 不进表格（实测），必须先点一下才响应
@@ -644,20 +654,23 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     }
 
     @objc func reload() {
-        // 数据不热更新：重读 view 文件，直接换新窗口的 contentView
+        // 数据不热更新：重读 view 文件 → 同一个窗口里整套重建。
+        // ⚠ 不许新建 NSWindow：旧实现把新窗的内容偷给旧窗，
+        //   留下一个空黑窗在最前面（用户实测"点刷新黑屏"）。
         guard let d = FileManager.default.contents(atPath: viewPath),
               let m = try? JSONDecoder().decode(ViewModel.self, from: d) else {
             NSSound.beep()
+            statusLabel?.stringValue = "读不到 \(viewPath)，先跑一次 mac-inventory"
             return
         }
-        let new = InventoryWindow(model: m, viewPath: viewPath)
-        window.contentView = new.contentAfterBuild()
-        panes = new.panes
-        statusLabel.textColor = .secondaryLabelColor
-        selectionChanged()
+        model = m
+        panes = []
+        dashNumBoxes.removeAll()
+        dashServiceRows = NSView()
+        dashCapView = NSView()
+        dashWarnView = NSView()
+        buildUI()
     }
-
-    func contentAfterBuild() -> NSView { window.contentView! }
 }
 
 // MARK: -NSTabView delegate
