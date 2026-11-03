@@ -778,7 +778,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
             // Finder 启动的 App PATH 很短，brew/python3 都看不到 → 补齐
             var env = ProcessInfo.processInfo.environment
             let cur = env["PATH"] ?? "/usr/bin:/bin"
-            env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + cur
+            env["PATH"] = NSHomeDirectory() + "/.local/bin:/opt/homebrew/bin:/usr/local/bin:" + cur
             p.environment = env
             p.standardOutput = FileHandle.nullDevice
             p.standardError = FileHandle.nullDevice
