@@ -738,6 +738,14 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
         dashCapView = NSView()
         dashWarnView = NSView()
         buildUI()
+        // 刷新必须有可见反馈，否则用户无法区分「读了新数据」和「没反应」。
+        // 表格重建后的选中事件会异步再写一次状态栏，所以反馈要落在那之后。
+        DispatchQueue.main.asyncAfter(.now() + 0.15) {
+            let t = DateFormatter()
+            t.dateFormat = "HH:mm:ss"
+            self.statusLabel?.stringValue = "已重读数据 \(t.string(from: Date()))" +
+                " · 标题栏时间是上次【采集】时点，重新采集请跑 mac-inventory"
+        }
     }
 }
 
