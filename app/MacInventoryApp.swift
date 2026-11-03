@@ -198,6 +198,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     var btnReload: NSButton!
     var detailBox: NSBox!
     var footerLabel: NSTextField!
+    var sepTop: NSBox!
     var segCtrl: NSSegmentedControl!
     var dashView: NSView!
     var inDashboard = false  // 默认明细表格（用户对比后定稿）；看板是第二入口
@@ -267,6 +268,10 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
                                       target: self, action: #selector(modeChanged(_:)))
         segCtrl.selectedSegment = 0
         content.addSubview(segCtrl)
+
+        sepTop = NSBox()
+        sepTop.boxType = .separator
+        content.addSubview(sepTop)
 
         searchField = NSSearchField()
         searchField.placeholderString = "搜索：名称 / 路径 / 端口 / 命令"
@@ -469,7 +474,7 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
     }
 
     private func layoutDashboard(W: CGFloat, H: CGFloat) {
-        dashView.frame = NSRect(x: 0, y: 0, width: W, height: H - 100)
+        dashView.frame = NSRect(x: 0, y: 0, width: W, height: H - 140)
         let nums = dashNumBoxes.count
         let cw: CGFloat = 176, ch: CGFloat = 58, gap: CGFloat = 14
         let totalW = CGFloat(nums) * cw + CGFloat(nums - 1) * gap
@@ -528,19 +533,21 @@ final class InventoryWindow: NSObject, NSWindowDelegate {
 
     private func layoutSubviews(of content: NSView) {
         let W = content.bounds.width, H = content.bounds.height
-        let top: CGFloat = 100
+        let top: CGFloat = 140
         let detailH: CGFloat = 132
         let statusH: CGFloat = 24
         let margin: CGFloat = 12
 
-        // fullSizeContentView：顶部 ~28pt 被红绿灯/titlebar 占据，内容从 H-64 起
-        titleLabel.frame = NSRect(x: 84, y: H - 66, width: 520, height: 22)
-        subLabel.frame = NSRect(x: 86, y: H - 86, width: 900, height: 14)
+        // fullSizeContentView：顶部 ~28pt 是红绿灯区。标题整体下压 + 留白，
+        // 底下一根发丝线把「页头」和内容干净分开
+        titleLabel.frame = NSRect(x: 84, y: H - 88, width: 520, height: 24)
+        subLabel.frame = NSRect(x: 86, y: H - 110, width: 980, height: 14)
 
-        btnReload.frame = NSRect(x: W - 84, y: H - 66, width: 70, height: 24)
-        btnCopy.frame = NSRect(x: W - 160, y: H - 66, width: 70, height: 24)
-        searchField.frame = NSRect(x: W - 436, y: H - 66, width: 268, height: 22)
-        segCtrl.frame = NSRect(x: W - 560, y: H - 64, width: 108, height: 22)
+        btnReload.frame = NSRect(x: W - 84, y: H - 92, width: 70, height: 24)
+        btnCopy.frame = NSRect(x: W - 160, y: H - 92, width: 70, height: 24)
+        searchField.frame = NSRect(x: W - 436, y: H - 92, width: 268, height: 22)
+        segCtrl.frame = NSRect(x: W - 560, y: H - 90, width: 108, height: 22)
+        sepTop.frame = NSRect(x: margin, y: H - 126, width: W - 2 * margin, height: 1)
 
         // 模式切换：看板占满 / 明细表 + 详情
         dashView.isHidden = !inDashboard

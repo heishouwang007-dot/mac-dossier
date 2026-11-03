@@ -2,7 +2,7 @@
   "version": 1,
   "host": "heishouwangdeMacBook-Pro-2",
   "updated_at": "2026-11-03",
-  "about": "Mac 这台的说明层，与 Windows 那套同 schema。installed_by: me=我装的 / system=系统自带 / vendor=第三方或校园部署。confirmed=false 是按痕迹推断的，待本人确认。事实由 collect/collect.py 采集；两边不一致会出现在「未登记」标签页。",
+  "about": "Mac 说明层。group 决定明细页分组（按语义，不按谁装的）：服务与自启=常驻的通道/菜单栏/launchd；工具与运行时=CLI 和运行时；项目与配置=仓库、环境变量、目录；学校授权=brew-poison 绝不能升级的校园软件。installed_by 仍保留（me=我装的 system=系统 vendor=第三方）给漂移检测用。",
   "items": [
     {
       "id": "llm-8802",
@@ -38,7 +38,8 @@
         "/Users/heishouwang/tongji-llm-api/scripts"
       ],
       "note": "开关脚本的判定看 /health 响应体，不是 lsof；启动前清代理环境变量（urllib 会偷读系统代理）。这个仓库 27 GB，大头是 traces/（对话轨迹，gitignore 了）。",
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "服务与自启"
     },
     {
       "id": "llm-8810",
@@ -67,7 +68,8 @@
       "covers": [
         "/Users/heishouwang/tongji-llm-api/8810"
       ],
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "服务与自启"
     },
     {
       "id": "clash-verge",
@@ -96,7 +98,8 @@
       ],
       "note": ".Merge.yaml 的 prepend-rules 会被静默忽略——规则必须走 Script.js；改完全局文件记得再备份 WebDAV。",
       "confirmed": false,
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "服务与自启"
     },
     {
       "id": "vpnbar",
@@ -124,7 +127,8 @@
       "installed_by": "me",
       "brew": [
         "openconnect"
-      ]
+      ],
+      "group": "服务与自启"
     },
     {
       "id": "aiobar",
@@ -146,7 +150,8 @@
       "docs": [
         "tongji-llm-api/app（源码）"
       ],
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "服务与自启"
     },
     {
       "id": "tongji-services",
@@ -173,7 +178,8 @@
         "/Users/heishouwang/tongji-vpn",
         "/Users/heishouwang/tongji-vdi-ssh",
         "/Users/heishouwang/tongji-vdi-macos-client-patch"
-      ]
+      ],
+      "group": "项目与配置"
     },
     {
       "id": "clash-stack",
@@ -190,7 +196,8 @@
         "/Users/heishouwang/clash-verge-backup",
         "/Users/heishouwang/clash-verge-fork"
       ],
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "项目与配置"
     },
     {
       "id": "pi",
@@ -222,7 +229,8 @@
         "/Users/heishouwang/.agents"
       ],
       "note": "AGENTS.md 是每会话的工作约定（代理、搜索、委派规则）；journal.md 是踩坑 журнал。",
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "工具与运行时"
     },
     {
       "id": "claude-grok-hermes",
@@ -253,7 +261,8 @@
       ],
       "confirmed": false,
       "note": "omlx 也在这一类（本地 MLX 模型服务 ~omlx/bin）。",
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "工具与运行时"
     },
     {
       "id": "search-tools",
@@ -286,7 +295,8 @@
       "docs": [
         "~/.pi/agent/skills/anysearch/SKILL.md"
       ],
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "工具与运行时"
     },
     {
       "id": "dev-runtime",
@@ -336,7 +346,8 @@
         "/Users/heishouwang/.cargo"
       ],
       "note": "命令行工具都用 brew 装在 /opt/homebrew；8802 服务用的是 brew python3.12（开关脚本里写死）。",
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "工具与运行时"
     },
     {
       "id": "llama",
@@ -363,7 +374,8 @@
         "llama.cpp",
         "ffmpeg"
       ],
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "工具与运行时"
     },
     {
       "id": "office-suite",
@@ -382,7 +394,8 @@
         "Microsoft Excel",
         "Microsoft PowerPoint",
         "Microsoft Outlook"
-      ]
+      ],
+      "group": "学校授权"
     },
     {
       "id": "xmind",
@@ -402,7 +415,8 @@
       "note": "已在 AGENTS.md 里登记为 brew-poison：禁止 brew 采纳/升级。",
       "covers": [
         "/Users/heishouwang/WorkBuddy"
-      ]
+      ],
+      "group": "学校授权"
     },
     {
       "id": "clash-apps",
@@ -433,7 +447,8 @@
         "coolmymac",
         "android-platform-tools",
         "copilot-cli"
-      ]
+      ],
+      "group": "工具与运行时"
     },
     {
       "id": "launchd-local",
@@ -460,7 +475,8 @@
         "local.tongji.aiobar",
         "local.screenshot-path",
         "com.boegam.eshow.service"
-      ]
+      ],
+      "group": "服务与自启"
     },
     {
       "id": "docker",
@@ -482,19 +498,8 @@
       "covers": [
         "/Users/heishouwang/docker"
       ],
-      "installed_by": "me"
-    },
-    {
-      "id": "timemachine",
-      "kind": "task",
-      "title": "Time Machine：没有配置备份目标",
-      "installed_by": "system",
-      "what": "系统能力是有的，但 tmutil 报 No destinations —— 重要数据实际靠仓库（git）+ 云盘 + 手工备份。",
-      "why": "列出这条是因为「以为有备份」比「知道没有」危险。",
-      "run": [
-        "tmutil destinationinfo"
-      ],
-      "status": []
+      "installed_by": "me",
+      "group": "工具与运行时"
     },
     {
       "id": "ssh-surface",
@@ -513,7 +518,8 @@
         "/Users/heishouwang/.ssh"
       ],
       "note": "私钥 600 无口令。丢了就在远程桌面里跑 vdi-sshd-fix.ps1 重新装公钥。",
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "项目与配置"
     },
     {
       "id": "proxy-env",
@@ -528,7 +534,8 @@
         "~/.zshrc"
       ],
       "status": [],
-      "installed_by": "me"
+      "installed_by": "me",
+      "group": "项目与配置"
     },
     {
       "id": "misc-tools",
@@ -559,7 +566,8 @@
         "/Users/heishouwang/scripts",
         "/Users/heishouwang/grok_build",
         "/Users/heishouwang/.config"
-      ]
+      ],
+      "group": "项目与配置"
     },
     {
       "id": "dot-apps",
@@ -573,7 +581,8 @@
       ],
       "covers": [
         "/Users/heishouwang/Applications"
-      ]
+      ],
+      "group": "项目与配置"
     }
   ]
 }

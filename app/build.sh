@@ -9,7 +9,9 @@ CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
 
-rm -rf "$APP"
+# ⚠ 不再 rm -rf 整个 bundle：整个目录重建会换 inode，LaunchServices 的图标
+# 绑定就旧了（Dock 会自己重读，桌面链接不会 → 图标显示成空）。
+# 改成原位覆盖二进制 + plist；目录保持稳定。
 mkdir -p "$MACOS" "$RESOURCES"
 swiftc -O -o "$MACOS/这台Mac上有什么" "$HERE/MacInventoryApp.swift"
 
@@ -33,4 +35,8 @@ PLIST
 [ -f "$HERE/AppIcon.icns" ] && cp "$HERE/AppIcon.icns" "$RESOURCES/AppIcon.icns"
 
 codesign --force --sign - "$APP" >/dev/null 2>&1
+# 图标缓存刷新（桌面/Dock 链接跟着新图标走）
+touch "$APP"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" >/dev/null 2>&1
+killall Dock >/dev/null 2>&1 || true
 echo "✓ $APP"

@@ -319,11 +319,13 @@ def build_view(data, notes):
                             {"h": "位置", "w": 320}, {"h": "怎么跑", "w": 280}],
                 "rows": rows}
 
-    tabs = [
-        item_tab("我装的", [i for i in items if i.get("installed_by", "me") == "me"]),
-        item_tab("系统自带", [i for i in items if i.get("installed_by") == "system"]),
-        item_tab("第三方", [i for i in items if i.get("installed_by") == "vendor"]),
-    ]
+    # 分组按语义（notes 里的 group 字段），不按「谁装的」——使用者的问题是
+    # 「这台机器能干什么」，不是「版权归属」。
+    order = ["服务与自启", "工具与运行时", "项目与配置", "学校授权"]
+    buckets = {g: [] for g in order}
+    for i in items:
+        buckets.setdefault(i.get("group", "项目与配置"), []).append(i)
+    tabs = [item_tab(g, buckets[g]) for g in order if buckets.get(g)]
 
     # 系统能力
     cap_rows = []
@@ -493,11 +495,11 @@ def build_md(data, notes):
     L = ["# %s · 这台 Mac 上有什么" % meta["hostname"], "",
          "> %s · %s · %s · %s 核 / %s GB · 采集于 %s" % (
              meta["user"], meta["os"], meta["cpu"], meta["cores"], meta["ram_gb"], meta["collected_at"]), ""]
-    for group, title in (("me", "## 我装的"), ("system", "## 系统自带"), ("vendor", "## 第三方")):
-        sel = [i for i in notes["items"] if i.get("installed_by", "me") == group]
+    for g in ("服务与自启", "工具与运行时", "项目与配置", "学校授权"):
+        sel = [i for i in notes["items"] if i.get("group") == g]
         if not sel:
             continue
-        L += [title, ""]
+        L += ["## " + g, ""]
         for it in sel:
             badges = resolve_status(it, facts)
             state = " ".join(("OK" if b["ok"] else ("!!" if b["ok"] is False else "--")) + " " + b["label"]
