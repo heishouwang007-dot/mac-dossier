@@ -22,9 +22,25 @@ LIST_FIELDS = {
     "caps", "apps", "launchd", "listeners", "path_entries", "commands", "dirs",
     "formulae", "casks", "taps", "keys", "hosts", "env", "items", "children",
     "bins", "run", "stop", "config", "docs", "status", "programs", "commands_note",
-    "tasks", "covers", "pipx", "npm", "uv_python", "mise", "http", "lines", "keys", "running_apps",
-"numbers", "services", "caps", "warns",
+    "tasks", "covers", "http", "running_apps",
+    # ⚠ 修复词形碰撞:包管理器名(pipx/npm/…​)不能当全局列表键——
+    #   brew 描述字典里恰好有叫 pipx 的键,曾被误包成列表,数据看似合法却解码失败。
+    #   packages.* 由 normalize_packages 单点处理。
 }
+
+
+def normalize_packages(data):
+    """packages 的直接子键((pipx|npm|uv_python|mise))语义上就该是列表:
+    采集器万一产出字符串/None,这里单点充气,不再全树乱扫。"""
+    pk = data.get("packages")
+    if not isinstance(pk, dict):
+        return
+    for k in ("pipx", "npm", "uv_python", "mise"):
+        v = pk.get(k)
+        if v is None:
+            pk[k] = []
+        elif isinstance(v, str):
+            pk[k] = [v] if v else []
 
 
 def normalize(node):
@@ -644,7 +660,9 @@ def main(argv=None):
     ap.add_argument("--md", default=None)
     args = ap.parse_args(argv)
     with open(args.json, encoding="utf-8") as f:
-        data = normalize(json.load(f))
+        data = json.load(f)
+    normalize_packages(data)
+    data = normalize(data)
     with open(args.notes, encoding="utf-8") as f:
         notes = normalize(json.load(f))
     view = build_view(data, notes)
